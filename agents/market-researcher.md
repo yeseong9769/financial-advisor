@@ -116,8 +116,8 @@ Response should include:
 
 ## Technical Implementation
 
-### Alpha Vantage API Key Note
-The API key is already configured in `opencode.json`. Use tools directly:
+### Alpha Vantage API Key
+API 키는 Shell 환경변수 `ALPHAVANTAGE_API_KEY`로 관리됩니다. Use tools directly:
 ```
 Tool call example: TIME_SERIES_DAILY with arguments {"symbol": "AAPL", "outputsize": "compact"}
 ```

@@ -118,7 +118,7 @@ Use markdown tables:
 ```python
 # ✅ 좋은 예: 메모리 처리
 import pandas as pd
-df = pd.read_excel("/mnt/samba/Documents/Investment/자산현황.xlsx")
+df = pd.read_excel(user_excel_path)
 total_value = df['Current_Value'].sum()  # 메모리에서 계산
 print(f"포트폴리오 총 가치: {total_value}")  # 화면 출력
 

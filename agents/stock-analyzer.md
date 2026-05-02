@@ -45,7 +45,7 @@ TMPDIR=$(mktemp -d)
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 MARKDOWN_FILE="$TMPDIR/report.md"
 PDF_NAME="AAPL_분석_${TIMESTAMP}.pdf"
-PDF_PATH="/mnt/samba/Documents/Investment/reports/$PDF_NAME"
+PDF_PATH="$PWD/$PDF_NAME"
 
 # 2. Markdown 리포트 생성 (분석 내용)
 cat > "$MARKDOWN_FILE" << 'EOF'

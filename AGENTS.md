@@ -75,21 +75,18 @@ TIME_SERIES_DAILY with {"symbol": "AAPL", "outputsize": "compact"}
 
 Only one skill: `financial-analyst`. Load with `skill(name="financial-analyst")`.
 
-It bundles 5 pure-standard-library Python scripts in `skills/financial-analyst/scripts/`:
+It bundles 5 Python scripts in `skills/financial-analyst/scripts/`:
 - `ratio_calculator.py` — 재무 비율 계산
 - `dcf_valuation.py` — DCF Valuation
 - `budget_variance_analyzer.py` — 예산 분기 분석
 - `forecast_builder.py` — 매출/현금흐름 예측
 - `rebalancing_calculator.py` — 포트폴리오 리밸런싱 계산
 
-All scripts use **Python standard library only** — no numpy, pandas, scipy, etc.
- Don't assume you can `pip install` extras.
-
 ## File & Output Conventions
 
 - **Default: print to screen only.** Do not write intermediate files to disk.
 - **PDF only on explicit request** (keywords: "PDF로", "PDF 생성", "리포트 파일로", "인쇄용").
-- PDF workflow: generate in `/tmp/`, convert with `pandoc` + `xelatex`, move to `reports/`, clean up `/tmp/`.
+- PDF workflow: generate in `/tmp/`, convert with `pandoc` + `xelatex`, move to current directory, clean up `/tmp/`.
 - Temporary data: keep in memory or `/tmp/`, delete after use.
 
 ## When to Delegate
