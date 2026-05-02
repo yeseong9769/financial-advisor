@@ -1,0 +1,77 @@
+{
+  "assets": [
+    "CLASS_Deposit",
+    "CLASS_Savings",
+    "CLASS_E_Money",
+    "CLASS_Fund",
+    "CLASS_ETF",
+    "CLASS_Stock",
+    "CLASS_Cash_Account",
+    "CLASS_Bond"
+  ],
+  "current_values": {
+    "CLASS_Deposit": 383536.0,
+    "CLASS_Savings": 6810000.0,
+    "CLASS_E_Money": 9796.0,
+    "CLASS_Fund": 9646111.0,
+    "CLASS_ETF": 7628024.252,
+    "CLASS_Stock": 3332510.0,
+    "CLASS_Cash_Account": 7541661.0656,
+    "CLASS_Bond": 0.0
+  },
+  "target_values": {
+    "CLASS_Deposit": 1767581.91588,
+    "CLASS_Savings": 1060549.1495279998,
+    "CLASS_E_Money": 707032.766352,
+    "CLASS_Fund": 5302745.74764,
+    "CLASS_ETF": 7070327.66352,
+    "CLASS_Stock": 14140655.32704,
+    "CLASS_Cash_Account": 1767581.91588,
+    "CLASS_Bond": 3535163.83176
+  },
+  "trades": {
+    "CLASS_Deposit": 1384045.91588,
+    "CLASS_Savings": -5749450.850472,
+    "CLASS_E_Money": 697236.766352,
+    "CLASS_Fund": -4343365.25236,
+    "CLASS_ETF": -557696.5884800004,
+    "CLASS_Stock": 10808145.32704,
+    "CLASS_Cash_Account": -5774079.14972,
+    "CLASS_Bond": 3535163.83176
+  },
+  "current_allocation": {
+    "CLASS_Deposit": 0.010849171870177643,
+    "CLASS_Savings": 0.1926360509467423,
+    "CLASS_E_Money": 0.0002771017261489409,
+    "CLASS_Fund": 0.27286178120909416,
+    "CLASS_ETF": 0.21577569286802611,
+    "CLASS_Stock": 0.09426748401476184,
+    "CLASS_Cash_Account": 0.2133327173650491,
+    "CLASS_Bond": 0.0
+  },
+  "target_allocation": {
+    "CLASS_Deposit": 0.05,
+    "CLASS_Savings": 0.029999999999999995,
+    "CLASS_E_Money": 0.02,
+    "CLASS_Fund": 0.15,
+    "CLASS_ETF": 0.2,
+    "CLASS_Stock": 0.4,
+    "CLASS_Cash_Account": 0.05,
+    "CLASS_Bond": 0.1
+  },
+  "allocation_change": {
+    "CLASS_Deposit": 0.03915082812982236,
+    "CLASS_Savings": -0.1626360509467423,
+    "CLASS_E_Money": 0.01972289827385106,
+    "CLASS_Fund": -0.12286178120909416,
+    "CLASS_ETF": -0.015775692868026103,
+    "CLASS_Stock": 0.3057325159852382,
+    "CLASS_Cash_Account": -0.16333271736504912,
+    "CLASS_Bond": 0.1
+  },
+  "total_value": 35351638.3176,
+  "transaction_costs": 32849.183682064,
+  "trade_volume": 32849183.682064,
+  "turnover_rate": 0.9292124847778233,
+  "method_used": "simple"
+}
