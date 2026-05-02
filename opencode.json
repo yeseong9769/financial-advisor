@@ -3,7 +3,7 @@
   "mcp": {
     "alphavantage": {
       "type": "remote",
-      "url": "https://mcp.alphavantage.co/mcp?apikey=S3NHF6FPDKYZT4Y3"
+      "url": "https://mcp.alphavantage.co/mcp?apikey=${ALPHAVANTAGE_API_KEY}"
     }
   }
 }
