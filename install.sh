@@ -18,7 +18,7 @@ Usage:
 Options:
   -g, --global    Install to ~/.config/opencode/
   -p, --project   Install to .opencode/ in current directory
-  -d, --dir       Install to specified directory (e.g., -d /path/to/.opencode)
+  -d, --dir       Install to specified project directory (e.g., -d /path/to/project — creates .opencode/ inside)
   -h, --help      Show this help
 EOF
   exit 0
@@ -172,8 +172,9 @@ if [ "$MODE" = "global" ]; then
   install_to "$TARGET"
   add_mcp_config "$TARGET/opencode.json"
 elif [ "$MODE" = "custom" ]; then
-  install_to "$CUSTOM_DIR"
-  add_mcp_config "$CUSTOM_DIR/opencode.json"
+  TARGET="$CUSTOM_DIR/.opencode"
+  install_to "$TARGET"
+  add_mcp_config "$TARGET/opencode.json"
 else
   TARGET="$(pwd)/.opencode"
   install_to "$TARGET"
