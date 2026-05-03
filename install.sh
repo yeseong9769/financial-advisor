@@ -174,11 +174,11 @@ if [ "$MODE" = "global" ]; then
 elif [ "$MODE" = "custom" ]; then
   TARGET="$CUSTOM_DIR/.opencode"
   install_to "$TARGET"
-  add_mcp_config "$TARGET/opencode.json"
+  add_mcp_config "$CUSTOM_DIR/opencode.json"
 else
   TARGET="$(pwd)/.opencode"
   install_to "$TARGET"
-  add_mcp_config "$TARGET/opencode.json"
+  add_mcp_config "$(pwd)/opencode.json"
 fi
 
 install_python
