@@ -26,7 +26,8 @@ financial-advisor/
 
 - [OpenCode](https://opencode.ai) installed
 - Alpha Vantage API key ([get one free](https://www.alphavantage.co/support/#api-key))
-- Python 3.x (for optional skill scripts)
+- Python 3.x
+- Python dependencies: `pip install -r requirements.txt`
 
 ## Quick Start
 
@@ -100,6 +101,22 @@ The only configuration file is `opencode.json` (generated from `opencode.json.ex
 ```
 
 > `opencode.json` is excluded from Git via `.gitignore`. Use `opencode.json.example` as a template.
+
+## Python Dependencies
+
+Install required packages:
+
+```bash
+pip install -r requirements.txt
+```
+
+### Current Dependencies
+
+| Package | Purpose | Required |
+|---------|---------|----------|
+| `openpyxl` | Read Excel (.xlsx) files | Only if using Excel format |
+
+CSV files work without any additional packages.
 
 ## Data Input
 
