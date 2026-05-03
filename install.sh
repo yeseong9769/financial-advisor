@@ -1,0 +1,148 @@
+#!/bin/bash
+set -e
+
+REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+show_help() {
+  cat <<'EOF'
+Financial Advisor Installer
+
+Install financial-advisor agents and skills for OpenCode.
+
+Usage:
+  bash install.sh -g      Global install (~/.config/opencode/)
+  bash install.sh -p      Project install (.opencode/ in current dir)
+  bash install.sh          Interactive mode (prompts for choice)
+
+Options:
+  -g, --global    Install to ~/.config/opencode/
+  -p, --project   Install to .opencode/ in current directory
+  -h, --help      Show this help
+EOF
+  exit 0
+}
+
+choose_target() {
+  echo "Financial Advisor - OpenCode Installer"
+  echo "======================================"
+  echo "Select install target:"
+  echo "  g) Global  — ~/.config/opencode/ (available in all projects)"
+  echo "  p) Project — $(pwd)/.opencode/ (current directory only)"
+  echo ""
+  read -rp "Choice (g/p): " choice
+  case "$choice" in
+    g|G) MODE="global" ;;
+    p|P) MODE="project" ;;
+    *) echo "Invalid choice. Enter g or p."; exit 1 ;;
+  esac
+}
+
+check_env() {
+  if ! command -v opencode &>/dev/null; then
+    echo "Warning: OpenCode is not installed."
+    echo "  Install: curl -fsSL https://opencode.ai/install | bash"
+    echo ""
+  fi
+  if [ -z "${ALPHAVANTAGE_API_KEY:-}" ]; then
+    echo "Warning: ALPHAVANTAGE_API_KEY environment variable is not set."
+    echo "  Set: export ALPHAVANTAGE_API_KEY='your_key'"
+    echo "  Permanent: echo 'export ALPHAVANTAGE_API_KEY=\"your_key\"' >> ~/.bashrc"
+    echo ""
+  fi
+}
+
+install_to() {
+  local target="$1"
+  echo "  Target: $target"
+
+  mkdir -p "$target/agents"
+  mkdir -p "$target/skills/financial-analyst/scripts"
+
+  cp "$REPO_DIR/agents/"*.md "$target/agents/"
+  cp "$REPO_DIR/skills/financial-analyst/SKILL.md" "$target/skills/financial-analyst/"
+  cp "$REPO_DIR/skills/financial-analyst/scripts/"*.py "$target/skills/financial-analyst/scripts/"
+
+  echo "  - agents ($(ls "$target/agents/"*.md 2>/dev/null | wc -l) files)"
+  echo "  - skills/financial-analyst ($(ls "$target/skills/financial-analyst/scripts/"*.py 2>/dev/null | wc -l) scripts)"
+}
+
+install_python() {
+  if [ -f "$REPO_DIR/requirements.txt" ]; then
+    echo "  Installing Python packages..."
+    pip install -r "$REPO_DIR/requirements.txt" -q
+    echo "  - pip install complete"
+  fi
+}
+
+add_mcp_config() {
+  local config_file="$1"
+  local config_dir
+  config_dir="$(dirname "$config_file")"
+  mkdir -p "$config_dir"
+
+  if [ ! -f "$config_file" ]; then
+    cp "$REPO_DIR/opencode.json.example" "$config_file"
+    echo "  - Created opencode.json (set API key before use)"
+    return
+  fi
+
+  if python3 -c "
+import json, sys
+with open('$config_file') as f:
+    cfg = json.load(f)
+if 'alphavantage' in cfg.get('mcp', {}):
+    sys.exit(0)
+else:
+    sys.exit(1)
+" 2>/dev/null; then
+    echo "  - opencode.json: Alpha Vantage MCP already configured, skipped"
+  else
+    python3 -c "
+import json
+with open('$config_file') as f:
+    cfg = json.load(f)
+if 'mcp' not in cfg:
+    cfg['mcp'] = {}
+cfg['mcp']['alphavantage'] = {
+    'type': 'remote',
+    'url': 'https://mcp.alphavantage.co/mcp?apikey={env:ALPHAVANTAGE_API_KEY}'
+}
+with open('$config_file', 'w') as f:
+    json.dump(cfg, f, indent=2)
+print('  - Alpha Vantage MCP config added to opencode.json')
+" 2>/dev/null || echo "  Warning: Failed to update opencode.json"
+  fi
+}
+
+# --- Main ---
+
+case "${1:-}" in
+  -g|--global) MODE="global" ;;
+  -p|--project) MODE="project" ;;
+  -h|--help) show_help ;;
+  "") choose_target ;;
+  *) echo "Unknown option: $1"; show_help ;;
+esac
+
+echo ""
+echo "Installing Financial Advisor..."
+echo ""
+
+if [ "$MODE" = "global" ]; then
+  TARGET="$HOME/.config/opencode"
+  install_to "$TARGET"
+  add_mcp_config "$TARGET/opencode.json"
+else
+  TARGET="$(pwd)/.opencode"
+  install_to "$TARGET"
+fi
+
+install_python
+
+echo ""
+check_env
+
+echo ""
+echo "Done! Use @finance-advisor in OpenCode."
+echo '  Example: "@finance-advisor analyze my portfolio"'
+echo ""
