@@ -47,3 +47,4 @@ echo '{"assets": [...], "cost_basis": ...}' | python scripts/portfolio_metrics.p
 ## Principles
 - All scripts are stdin/stdout based (no file creation)
 - LLM performs most analysis directly; scripts are supplementary tools
+- Economic news analysis is handled by LLM using Alpha Vantage NEWS_SENTIMENT API
