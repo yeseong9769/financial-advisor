@@ -134,6 +134,9 @@ Portfolio optimization and asset allocation rebalancing.
 python scripts/rebalancing_calculator.py portfolio_data.json
 python scripts/rebalancing_calculator.py portfolio_data.json --method risk_parity
 python scripts/rebalancing_calculator.py portfolio_data.json --transaction-cost 0.001 --output rebalancing_report.json
+
+# Stdin input (for LLM-driven workflows, no file creation needed):
+echo '{"assets": [{"symbol": "AAPL", "current_value": 17550, "asset_class": "Stock"}], "target_weights": {"AAPL": 0.2}}' | python scripts/rebalancing_calculator.py --stdin
 ```
 
 ## Knowledge Bases

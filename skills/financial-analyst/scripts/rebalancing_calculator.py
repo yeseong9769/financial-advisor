@@ -227,9 +227,16 @@ def save_results(results: RebalancingResult, output_file: Optional[str] = None):
     
     return results_dict
 
+def load_portfolio_data_from_stdin() -> Dict:
+    """Load portfolio data from stdin"""
+    import sys
+    raw = sys.stdin.read()
+    return json.loads(raw)
+
 def main():
     parser = argparse.ArgumentParser(description='Portfolio Rebalancing Calculator')
-    parser.add_argument('portfolio_file', help='JSON file with portfolio data')
+    parser.add_argument('portfolio_file', nargs='?', help='JSON file with portfolio data')
+    parser.add_argument('--stdin', action='store_true', help='Read portfolio data from stdin')
     parser.add_argument('--method', choices=['simple', 'mpt', 'risk_parity'], 
                        default='simple', help='Rebalancing method')
     parser.add_argument('--transaction-cost', type=float, default=0.001,
@@ -242,12 +249,18 @@ def main():
     
     # Load portfolio data
     try:
-        portfolio_data = load_portfolio_data(args.portfolio_file)
+        if args.stdin:
+            portfolio_data = load_portfolio_data_from_stdin()
+        elif args.portfolio_file:
+            portfolio_data = load_portfolio_data(args.portfolio_file)
+        else:
+            parser.print_help()
+            return 1
     except FileNotFoundError:
         print(f"Error: File {args.portfolio_file} not found")
         return 1
     except json.JSONDecodeError:
-        print(f"Error: Invalid JSON in {args.portfolio_file}")
+        print("Error: Invalid JSON in input")
         return 1
     
     # Create rebalancer
