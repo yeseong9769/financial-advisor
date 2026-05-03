@@ -17,22 +17,18 @@ import argparse
 import json
 import math
 import sys
-from statistics import mean
 from typing import Any, Dict, List, Optional, Tuple
 
 
 def safe_divide(numerator: float, denominator: float, default: float = 0.0) -> float:
-    """Safely divide two numbers, returning default if denominator is zero."""
     if denominator == 0 or denominator is None:
         return default
     return numerator / denominator
 
 
 class DCFModel:
-    """Discounted Cash Flow valuation model."""
 
     def __init__(self) -> None:
-        """Initialize the DCF model."""
         self.historical: Dict[str, Any] = {}
         self.assumptions: Dict[str, Any] = {}
         self.wacc: float = 0.0
@@ -49,16 +45,13 @@ class DCFModel:
         self.value_per_share_exit_multiple: float = 0.0
 
     def set_historical_financials(self, historical: Dict[str, Any]) -> None:
-        """Set historical financial data."""
         self.historical = historical
 
     def set_assumptions(self, assumptions: Dict[str, Any]) -> None:
-        """Set projection assumptions."""
         self.assumptions = assumptions
         self.projection_years = assumptions.get("projection_years", 5)
 
     def calculate_wacc(self) -> float:
-        """Calculate Weighted Average Cost of Capital via CAPM."""
         wacc_inputs = self.assumptions.get("wacc_inputs", {})
 
         risk_free_rate = wacc_inputs.get("risk_free_rate", 0.04)
@@ -79,7 +72,6 @@ class DCFModel:
         return self.wacc
 
     def project_cash_flows(self) -> Tuple[List[float], List[float]]:
-        """Project revenue and free cash flow over the projection period."""
         base_revenue = self.historical.get("revenue", [])
         if not base_revenue:
             raise ValueError("Historical revenue data is required")
@@ -117,7 +109,6 @@ class DCFModel:
         return self.projected_revenue, self.projected_fcf
 
     def calculate_terminal_value(self) -> Tuple[float, float]:
-        """Calculate terminal value using both perpetuity growth and exit multiple."""
         if not self.projected_fcf:
             raise ValueError("Must project cash flows before terminal value")
 
@@ -140,7 +131,6 @@ class DCFModel:
         return self.terminal_value_perpetuity, self.terminal_value_exit_multiple
 
     def calculate_enterprise_value(self) -> Tuple[float, float]:
-        """Calculate enterprise value by discounting projected FCFs and terminal value."""
         if not self.projected_fcf:
             raise ValueError("Must project cash flows first")
 
@@ -160,7 +150,6 @@ class DCFModel:
         return self.enterprise_value_perpetuity, self.enterprise_value_exit_multiple
 
     def calculate_equity_value(self) -> Tuple[float, float]:
-        """Calculate equity value from enterprise value."""
         net_debt = self.historical.get("net_debt", 0)
         shares_outstanding = self.historical.get("shares_outstanding", 1)
 
@@ -282,7 +271,6 @@ class DCFModel:
         }
 
     def format_text(self, results: Dict[str, Any]) -> str:
-        """Format valuation results as human-readable text."""
         lines: List[str] = []
         lines.append("=" * 70)
         lines.append("DCF VALUATION ANALYSIS")
@@ -371,37 +359,22 @@ class DCFModel:
 
 
 def main() -> None:
-    """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="DCF Valuation Model - Enterprise and equity valuation"
-    )
-    parser.add_argument(
-        "input_file",
-        help="Path to JSON file with valuation data",
-    )
-    parser.add_argument(
-        "--format",
-        choices=["text", "json"],
-        default="text",
-        help="Output format (default: text)",
-    )
-    parser.add_argument(
-        "--projection-years",
-        type=int,
-        default=None,
-        help="Number of projection years (overrides input file)",
-    )
+    parser = argparse.ArgumentParser(description="DCF Valuation Model")
+    parser.add_argument("input_file", nargs="?", help="Path to JSON file")
+    parser.add_argument("--stdin", action="store_true", help="Read JSON from stdin")
+    parser.add_argument("--format", choices=["text", "json"], default="text")
+    parser.add_argument("--projection-years", type=int, default=None)
 
     args = parser.parse_args()
 
     try:
-        with open(args.input_file, "r") as f:
-            data = json.load(f)
-    except FileNotFoundError:
-        print(f"Error: File '{args.input_file}' not found.", file=sys.stderr)
-        sys.exit(1)
-    except json.JSONDecodeError as e:
-        print(f"Error: Invalid JSON in '{args.input_file}': {e}", file=sys.stderr)
+        if args.stdin:
+            data = json.load(sys.stdin)
+        else:
+            with open(args.input_file, "r") as f:
+                data = json.load(f)
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
     model = DCFModel()

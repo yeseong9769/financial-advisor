@@ -1,198 +1,42 @@
 ---
 name: financial-analyst
-description: Performs financial ratio analysis, DCF valuation, budget variance analysis, and rolling forecast construction for strategic decision-making. Use when analyzing financial statements, building valuation models, assessing budget variances, or constructing financial projections and forecasts. Also applicable when users mention financial modeling, cash flow analysis, company valuation, financial projections, or spreadsheet analysis.
+description: 포트폴리오 분석을 위한 Python 계산 스크립트 모음
 license: MIT
 compatibility: opencode
 metadata:
   audience: financial analysts
   category: finance
   purpose: investment portfolio analysis
-  version: 2.0
+  version: 3.0
 ---
 
 # Financial Analyst Skill
 
-## Overview
-
-Production-ready financial analysis toolkit providing ratio analysis, DCF valuation, budget variance analysis, and rolling forecast construction. Designed for financial modeling, forecasting & budgeting, management reporting, business performance analysis, and investment analysis.
-
-## 5-Phase Workflow
-
-### Phase 1: Scoping
-- Define analysis objectives and stakeholder requirements
-- Identify data sources and time periods
-- Establish materiality thresholds and accuracy targets
-- Select appropriate analytical frameworks
-
-### Phase 2: Data Analysis & Modeling
-- Collect and validate financial data (income statement, balance sheet, cash flow)
-- **Validate input data completeness** before running ratio calculations (check for missing fields, nulls, or implausible values)
-- Calculate financial ratios across 5 categories (profitability, liquidity, leverage, efficiency, valuation)
-- Build DCF models with WACC and terminal value calculations; **cross-check DCF outputs against sanity bounds** (e.g., implied multiples vs. comparables)
-- Construct budget variance analyses with favorable/unfavorable classification
-- Develop driver-based forecasts with scenario modeling
-
-### Phase 3: Insight Generation
-- Interpret ratio trends and benchmark against industry standards
-- Identify material variances and root causes
-- Assess valuation ranges through sensitivity analysis
-- Evaluate forecast scenarios (base/bull/bear) for decision support
-
-### Phase 4: Reporting
-- Generate executive summaries with key findings
-- Produce detailed variance reports by department and category
-- Deliver DCF valuation reports with sensitivity tables
-- Present rolling forecasts with trend analysis
-
-### Phase 5: Follow-up
-- Track forecast accuracy (target: +/-5% revenue, +/-3% expenses)
-- Monitor report delivery timeliness (target: 100% on time)
-- Update models with actuals as they become available
-- Refine assumptions based on variance analysis
+LLM이 직접 분석/판단하고, 정밀 계산이 필요한 경우에만 아래 스크립트를 사용합니다.
 
 ## Tools
 
 ### 1. Ratio Calculator (`scripts/ratio_calculator.py`)
-
-Calculate and interpret financial ratios from financial statement data.
-
-**Ratio Categories:**
-- **Profitability:** ROE, ROA, Gross Margin, Operating Margin, Net Margin
-- **Liquidity:** Current Ratio, Quick Ratio, Cash Ratio
-- **Leverage:** Debt-to-Equity, Interest Coverage, DSCR
-- **Efficiency:** Asset Turnover, Inventory Turnover, Receivables Turnover, DSO
-- **Valuation:** P/E, P/B, P/S, EV/EBITDA, PEG Ratio
+재무 비율 계산. stdin 입력 → stdout 출력.
 
 ```bash
-python scripts/ratio_calculator.py sample_financial_data.json
-python scripts/ratio_calculator.py sample_financial_data.json --format json
-python scripts/ratio_calculator.py sample_financial_data.json --category profitability
+echo '{"income_statement": {...}, "balance_sheet": {...}}' | python scripts/ratio_calculator.py --stdin
 ```
 
 ### 2. DCF Valuation (`scripts/dcf_valuation.py`)
-
-Discounted Cash Flow enterprise and equity valuation with sensitivity analysis.
-
-**Features:**
-- WACC calculation via CAPM
-- Revenue and free cash flow projections (5-year default)
-- Terminal value via perpetuity growth and exit multiple methods
-- Enterprise value and equity value derivation
-- Two-way sensitivity analysis (discount rate vs growth rate)
+DCF 기업가치 평가 + 민감도 분석.
 
 ```bash
-python scripts/dcf_valuation.py valuation_data.json
-python scripts/dcf_valuation.py valuation_data.json --format json
-python scripts/dcf_valuation.py valuation_data.json --projection-years 7
+echo '{"historical_data": {...}, "assumptions": {...}}' | python scripts/dcf_valuation.py --stdin
 ```
 
-### 3. Budget Variance Analyzer (`scripts/budget_variance_analyzer.py`)
-
-Analyze actual vs budget vs prior year performance with materiality filtering.
-
-**Features:**
-- Dollar and percentage variance calculation
-- Materiality threshold filtering (default: 10% or $50K)
-- Favorable/unfavorable classification with revenue/expense logic
-- Department and category breakdown
-- Executive summary generation
+### 3. Rebalancing Calculator (`scripts/rebalancing_calculator.py`)
+리밸런싱 정밀 수치 계산.
 
 ```bash
-python scripts/budget_variance_analyzer.py budget_data.json
-python scripts/budget_variance_analyzer.py budget_data.json --format json
-python scripts/budget_variance_analyzer.py budget_data.json --threshold-pct 5 --threshold-amt 25000
+echo '{"assets": [...], "target_weights": {...}}' | python scripts/rebalancing_calculator.py --stdin
 ```
 
-### 4. Forecast Builder (`scripts/forecast_builder.py`)
-
-Driver-based revenue forecasting with rolling cash flow projection and scenario modeling.
-
-**Features:**
-- Driver-based revenue forecast model
-- 13-week rolling cash flow projection
-- Scenario modeling (base/bull/bear cases)
-- Trend analysis using simple linear regression (standard library)
-
-```bash
-python scripts/forecast_builder.py forecast_data.json
-python scripts/forecast_builder.py forecast_data.json --format json
-python scripts/forecast_builder.py forecast_data.json --scenarios base,bull,bear
-```
-
-### 5. Rebalancing Calculator (`scripts/rebalancing_calculator.py`)
-
-Portfolio optimization and asset allocation rebalancing.
-
-**Features:**
-- Modern Portfolio Theory (Markowitz) optimization
-- Risk Parity asset allocation
-- Tax-loss harvesting opportunity identification
-- Transaction cost and turnover rate calculation
-- Simple, MPT, and risk parity rebalancing methods
-
-```bash
-python scripts/rebalancing_calculator.py portfolio_data.json
-python scripts/rebalancing_calculator.py portfolio_data.json --method risk_parity
-python scripts/rebalancing_calculator.py portfolio_data.json --transaction-cost 0.001 --output rebalancing_report.json
-
-# Stdin input (for LLM-driven workflows, no file creation needed):
-echo '{"assets": [{"symbol": "AAPL", "current_value": 17550, "asset_class": "Stock"}], "target_weights": {"AAPL": 0.2}}' | python scripts/rebalancing_calculator.py --stdin
-```
-
-## Knowledge Bases
-
-| Reference | Purpose |
-|-----------|---------|
-| `references/financial-ratios-guide.md` | Ratio formulas, interpretation, industry benchmarks |
-| `references/valuation-methodology.md` | DCF methodology, WACC, terminal value, comps |
-| `references/forecasting-best-practices.md` | Driver-based forecasting, rolling forecasts, accuracy |
-| `references/industry-adaptations.md` | Sector-specific metrics and considerations (SaaS, Retail, Manufacturing, Financial Services, Healthcare) |
-| `references/portfolio-rebalancing-guide.md` | Modern Portfolio Theory, Risk Parity, tax-loss harvesting |
-
-## Templates
-
-| Template | Purpose |
-|----------|---------|
-| `assets/variance_report_template.md` | Budget variance report template |
-| `assets/dcf_analysis_template.md` | DCF valuation analysis template |
-| `assets/forecast_report_template.md` | Revenue forecast report template |
-
-## Key Metrics & Targets
-
-| Metric | Target |
-|--------|--------|
-| Forecast accuracy (revenue) | +/-5% |
-| Forecast accuracy (expenses) | +/-3% |
-| Report delivery | 100% on time |
-| Model documentation | Complete for all assumptions |
-| Variance explanation | 100% of material variances |
-
-## Input Data Format
-
-All scripts accept JSON input files. See `assets/sample_financial_data.json` for the complete input schema covering all five tools.
-
-### Rebalancing Calculator Input Schema
-```json
-{
-  "assets": [
-    {
-      "symbol": "AAPL",
-      "asset_class": "Stock",
-      "current_price": 175.50,
-      "quantity": 100,
-      "purchase_price": 150.25,
-      "current_value": 17550.00
-    }
-  ],
-  "target_weights": {
-    "AAPL": 0.25,
-    "GOOGL": 0.25,
-    "BND": 0.30,
-    "CASH": 0.20
-  }
-}
-```
-
-## Dependencies
-
-**None** - All scripts use Python standard library only (`math`, `statistics`, `json`, `argparse`, `datetime`). No numpy, pandas, or scipy required.
+## Principles
+- 모든 스크립트는 stdin/stdout 기반 (파일 생성 금지)
+- LLM이 대부분의 분석을 직접 수행, 스크립트는 보조 도구
