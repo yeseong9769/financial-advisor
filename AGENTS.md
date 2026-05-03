@@ -17,7 +17,7 @@
 - **Primary agent**: `agents/finance-advisor.md` — orchestrates other agents, handles user-facing questions
 - **Subagents**: `agents/portfolio-analyzer.md`, `agents/market-researcher.md`, `agents/rebalancing-engine.md`, `agents/stock-analyzer.md`
 - **Skill**: `skills/financial-analyst/SKILL.md` — financial modeling toolkit with Python scripts
-- **Config**: `opencode.json` — registers Alpha Vantage MCP server
+- **Config**: `opencode.json.example` — Alpha Vantage MCP 설정 템플릿 (사용자 환경에 맞게 복사해서 사용)
 
 ## Data Input Conventions
 
@@ -34,17 +34,24 @@
  Alpha Vantage API 키는 **Shell 환경변수**로 관리합니다.
 
 **설정 방법**:
-```bash
-export ALPHAVANTAGE_API_KEY="your_api_key_here"
-```
 
-**MCP 설정** (`opencode.json`):
+1. `.bashrc` 또는 `.zshrc`에 환경변수 등록:
+   ```bash
+   export ALPHAVANTAGE_API_KEY="your_api_key_here"
+   ```
+
+2. `opencode.json.example`을 `opencode.json`으로 복사:
+   ```bash
+   cp opencode.json.example opencode.json
+   ```
+
+**MCP 설정** (`opencode.json.example` 참고):
 ```json
 {
   "mcp": {
     "alphavantage": {
       "type": "remote",
-      "url": "https://mcp.alphavantage.co/mcp?apikey=${ALPHAVANTAGE_API_KEY}"
+      "url": "https://mcp.alphavantage.co/mcp?apikey={env:ALPHAVANTAGE_API_KEY}"
     }
   }
 }
@@ -52,8 +59,8 @@ export ALPHAVANTAGE_API_KEY="your_api_key_here"
 
 **주의**:
 - API 키는 `.bashrc` 또는 `.zshrc`에 등록하여 영구 설정 권장
+- `opencode.json`은 Git에 포함되지 않습니다. `opencode.json.example`을 템플릿으로 사용하세요.
 - `opencode.json`에는 API 키를 하드코딩하지 마세요
-- Git에 `opencode.json`을 커밋하기 전, API 키가 포함되지 않았는지 확인하세요
 
 ### Alpha Vantage MCP Usage
 

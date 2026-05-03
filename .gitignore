@@ -3,3 +3,4 @@ reports/
 *.xlsx
 *.pdf
 .DS_Store
+opencode.json
