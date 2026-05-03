@@ -2,12 +2,12 @@
 description: Stock Analyst - Fundamental and technical analysis, PDF report generation on request
 mode: subagent
 temperature: 0.1
-tools:
-  read: true
-  bash: true
-  alphavantage*: true
-  webfetch: true
-  websearch: true
+permission:
+  read: allow
+  bash: allow
+  alphavantage*: allow
+  webfetch: allow
+  websearch: allow
 ---
 
 # Stock Analyzer

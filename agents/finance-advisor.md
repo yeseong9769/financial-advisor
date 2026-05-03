@@ -2,14 +2,15 @@
 description: Professional Investment Advisor - Portfolio analysis, market research, rebalancing recommendations
 mode: primary
 temperature: 0.15
-tools:
-  read: true
-  edit: true
-  bash: true
-  write: true
-  glob: true
-  grep: true
-  alphavantage*: true
+permission:
+  read: allow
+  edit: allow
+  bash: allow
+  write: allow
+  glob: allow
+  grep: allow
+  alphavantage*: allow
+  task: allow
 ---
 
 # Professional Financial Investment Advisor

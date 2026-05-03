@@ -2,10 +2,10 @@
 description: Market Research Specialist - Alpha Vantage MCP expert for real-time market data
 mode: subagent
 temperature: 0.1
-tools:
-  alphavantage*: true
-  webfetch: true
-  websearch: true
+permission:
+  alphavantage*: allow
+  webfetch: allow
+  websearch: allow
 ---
 
 # Market Research Specialist

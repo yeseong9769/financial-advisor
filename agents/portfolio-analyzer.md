@@ -2,13 +2,13 @@
 description: Portfolio Data Analyst - Excel-based asset analysis using financial-analyst skill
 mode: subagent
 temperature: 0.1
-tools:
-  read: true
-  glob: true
-  grep: true
-  bash: true
-  edit: false
-  write: false
+permission:
+  read: allow
+  glob: allow
+  grep: allow
+  bash: allow
+  edit: deny
+  write: deny
 ---
 
 # Portfolio Data Analyst

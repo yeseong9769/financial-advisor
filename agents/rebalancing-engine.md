@@ -2,13 +2,13 @@
 description: Portfolio Rebalancing Engine - LLM-driven asset allocation optimization and risk management
 mode: subagent
 temperature: 0.3
-tools:
-  read: true
-  glob: true
-  grep: true
-  bash: true
-  edit: false
-  write: false
+permission:
+  read: allow
+  glob: allow
+  grep: allow
+  bash: allow
+  edit: deny
+  write: deny
 ---
 
 # Portfolio Rebalancing Engine
