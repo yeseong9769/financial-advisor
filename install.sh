@@ -10,13 +10,15 @@ Financial Advisor Installer
 Install financial-advisor agents and skills for OpenCode.
 
 Usage:
-  bash install.sh -g      Global install (~/.config/opencode/)
-  bash install.sh -p      Project install (.opencode/ in current dir)
-  bash install.sh          Interactive mode (prompts for choice)
+  bash install.sh -g              Global install (~/.config/opencode/)
+  bash install.sh -p              Project install (.opencode/ in current dir)
+  bash install.sh -d <path>       Install to custom directory
+  bash install.sh                  Interactive mode (prompts for choice)
 
 Options:
   -g, --global    Install to ~/.config/opencode/
   -p, --project   Install to .opencode/ in current directory
+  -d, --dir       Install to specified directory (e.g., -d /path/to/.opencode)
   -h, --help      Show this help
 EOF
   exit 0
@@ -28,12 +30,20 @@ choose_target() {
   echo "Select install target:"
   echo "  g) Global  — ~/.config/opencode/ (available in all projects)"
   echo "  p) Project — $(pwd)/.opencode/ (current directory only)"
+  echo "  c) Custom  — specify a custom directory"
   echo ""
-  read -rp "Choice (g/p): " choice
+  read -rp "Choice (g/p/c): " choice
   case "$choice" in
     g|G) MODE="global" ;;
     p|P) MODE="project" ;;
-    *) echo "Invalid choice. Enter g or p."; exit 1 ;;
+    c|C)
+      MODE="custom"
+      read -rp "Enter target path: " CUSTOM_DIR
+      if [ -z "$CUSTOM_DIR" ]; then
+        echo "Path cannot be empty."; exit 1
+      fi
+      ;;
+    *) echo "Invalid choice. Enter g, p, or c."; exit 1 ;;
   esac
 }
 
@@ -140,6 +150,14 @@ print('  - Alpha Vantage MCP config added to opencode.json')
 case "${1:-}" in
   -g|--global) MODE="global" ;;
   -p|--project) MODE="project" ;;
+  -d|--dir)
+    MODE="custom"
+    CUSTOM_DIR="$2"
+    if [ -z "$CUSTOM_DIR" ]; then
+      echo "Error: --dir requires a path argument"
+      exit 1
+    fi
+    ;;
   -h|--help) show_help ;;
   "") choose_target ;;
   *) echo "Unknown option: $1"; show_help ;;
@@ -153,6 +171,9 @@ if [ "$MODE" = "global" ]; then
   TARGET="$HOME/.config/opencode"
   install_to "$TARGET"
   add_mcp_config "$TARGET/opencode.json"
+elif [ "$MODE" = "custom" ]; then
+  install_to "$CUSTOM_DIR"
+  add_mcp_config "$CUSTOM_DIR/opencode.json"
 else
   TARGET="$(pwd)/.opencode"
   install_to "$TARGET"
