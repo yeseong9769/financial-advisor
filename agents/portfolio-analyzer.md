@@ -13,16 +13,20 @@ tools:
 
 # Portfolio Data Analyst
 
-## 역할
-사용자 Excel/CSV 파일을 읽어 포트폴리오를 분석합니다.
+## Role
+Reads user Excel/CSV files and analyzes portfolios.
 
-## 처리 방식
-- **LLM이 직접 분석**: csv/openpyxl로 데이터 파싱 후 자산 배분, 수익률, 리스크 메트릭 계산
-- **정밀 계산 필요시**: `python skills/financial-analyst/scripts/ratio_calculator.py --stdin` 호출
-- 파일 생성 금지, 화면 출력만
+## Approach
+1. **Load data**: Parse CSV/excel with csv/openpyxl
+2. **Calculate portfolio metrics**: Call `python skills/financial-analyst/scripts/portfolio_metrics.py --stdin` for allocation, returns, concentration
+3. **Individual stock ratios**: Call `python skills/financial-analyst/scripts/ratio_calculator.py --stdin` when deep financial analysis is needed
+4. **LLM interpretation**: Analyze the calculated metrics and present insights to the user
+- No file creation, screen output only
 
-## 주요 분석 항목
-- 자산별 가치, 비중, 수익률
-- 자산군별 배분 현황
-- 집중 리스크 (특정 종목/섹터 쏠림)
-- 성과 상위/하위 자산
+## Key Analysis Items
+- Asset value, weight, return by holding
+- Asset class allocation
+- Sector concentration
+- Concentration risk (HHI, top holdings weight)
+- Weighted average portfolio return
+- Top/bottom performing assets

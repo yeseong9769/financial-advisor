@@ -1,6 +1,6 @@
 # Financial Advisor — OpenCode Multi-Agent System
 
-개인 투자자를 위한 AI 기반 금융 비서. 포트폴리오 분석, 시장 데이터 조회, 자산 재배분(리밸런싱) 추천을 제공합니다.
+AI-powered financial assistant for individual investors. Provides portfolio analysis, market data retrieval, and asset rebalancing recommendations.
 
 ## Quick Install
 
@@ -10,20 +10,20 @@ cd financial-advisor
 bash install.sh
 ```
 
-설치 시 전역(`~/.config/opencode/`) 또는 프로젝트(`.opencode/`)를 선택할 수 있습니다.
+Installation supports global (`~/.config/opencode/`) or project (`.opencode/`) targets.
 
-### 전역 설치 (권장)
+### Global Install (Recommended)
 ```bash
 bash install.sh -g
 ```
-모든 프로젝트에서 `@finance-advisor` 사용 가능.
+Available in all projects via `@finance-advisor`.
 
-### 프로젝트 설치
+### Project Install
 ```bash
 cd my-portfolio-project
 bash /path/to/financial-advisor/install.sh -p
 ```
-현재 프로젝트에서만 사용.
+Only available in the current project.
 
 ## Prerequisites
 
@@ -37,10 +37,10 @@ bash /path/to/financial-advisor/install.sh -p
 opencode
 ```
 ```
-포트폴리오 분석해줘
-자산 재배분 제안해줘
-AAPL 현재가 알려줘
-@stock-analyzer TSLA 심층 분석해줘
+Analyze my portfolio
+Suggest asset rebalancing
+Show me AAPL current price
+@stock-analyzer Deep dive on TSLA
 ```
 
 ## Features
@@ -56,11 +56,11 @@ AAPL 현재가 알려줘
 
 ```
 financial-advisor/
-├── install.sh              ← 설치 도구
-├── AGENTS.md               ← 프로젝트 개발 규칙
+├── install.sh              ← Install script
+├── AGENTS.md               ← Development rules
 ├── opencode.json.example   ← MCP config template
-├── requirements.txt        ← Python 의존성 (openpyxl)
-├── agents/                 ← OpenCode agent 정의
+├── requirements.txt        ← Python dependencies (openpyxl)
+├── agents/                 ← OpenCode agent definitions
 │   ├── finance-advisor.md
 │   ├── portfolio-analyzer.md
 │   ├── market-researcher.md

@@ -122,6 +122,7 @@ class DCFModel:
             ) / (self.wacc - terminal_growth)
         else:
             self.terminal_value_perpetuity = 0.0
+            print("Warning: WACC ({:.2%}) <= terminal growth rate ({:.2%}). Perpetuity method disabled.".format(self.wacc, terminal_growth), file=sys.stderr)
 
         terminal_revenue = self.projected_revenue[-1]
         ebitda_margin = self.assumptions.get("terminal_ebitda_margin", 0.20)
@@ -210,8 +211,8 @@ class DCFModel:
         for i, wacc_val in enumerate(wacc_range):
             for j, growth_val in enumerate(growth_range):
                 if wacc_val <= growth_val:
-                    ev_table[i][j] = float("inf")
-                    share_price_table[i][j] = float("inf")
+                    ev_table[i][j] = None
+                    share_price_table[i][j] = None
                     continue
 
                 pv_fcf = 0.0
@@ -277,7 +278,7 @@ class DCFModel:
         lines.append("=" * 70)
 
         def fmt_money(val: float) -> str:
-            if val == float("inf"):
+            if val is None:
                 return "N/A (WACC <= growth)"
             if abs(val) >= 1e9:
                 return f"${val / 1e9:,.2f}B"
@@ -348,7 +349,7 @@ class DCFModel:
             row = f"  {w * 100:>9.1f}%"
             for j in range(len(sens["growth_values"])):
                 val = sens["enterprise_value_table"][i][j]
-                if val == float("inf"):
+                if val is None:
                     row += f"  {'N/A':>8s}"
                 else:
                     row += f"  {fmt_money(val):>8s}"
@@ -393,8 +394,6 @@ def main() -> None:
 
     if args.format == "json":
         def sanitize(obj: Any) -> Any:
-            if isinstance(obj, float) and math.isinf(obj):
-                return None
             if isinstance(obj, dict):
                 return {k: sanitize(v) for k, v in obj.items()}
             if isinstance(obj, list):

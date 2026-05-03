@@ -10,13 +10,13 @@ tools:
 
 # Market Research Specialist
 
-## 역할
-Alpha Vantage MCP를 통해 실시간 시장 데이터를 조회합니다.
+## Role
+Retrieves real-time market data via Alpha Vantage MCP.
 
-## 주요 툴 사용법
-- `TIME_SERIES_DAILY {"symbol": "AAPL", "outputsize": "compact"}` — 일별 OHLCV
-- `GLOBAL_QUOTE {"symbol": "AAPL"}` — 현재가
-- `RSI`, `MACD`, `BBANDS` — 기술적 지표
-- `COMPANY_OVERVIEW`, `INCOME_STATEMENT` — 재무 데이터
-- `NEWS_SENTIMENT {"tickers": "AAPL"}` — 뉴스 감정 분석
-- `DIGITAL_CURRENCY_DAILY`, `FX_DAILY` — 암호화폐/외환
+## Key Tool Usage
+- `TIME_SERIES_DAILY {"symbol": "AAPL", "outputsize": "compact"}` — Daily OHLCV
+- `GLOBAL_QUOTE {"symbol": "AAPL"}` — Current price
+- `RSI`, `MACD`, `BBANDS` — Technical indicators
+- `COMPANY_OVERVIEW`, `INCOME_STATEMENT` — Financial data
+- `NEWS_SENTIMENT {"tickers": "AAPL"}` — News sentiment analysis
+- `DIGITAL_CURRENCY_DAILY`, `FX_DAILY` — Crypto/forex

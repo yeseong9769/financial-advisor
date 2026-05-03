@@ -37,17 +37,38 @@ choose_target() {
   esac
 }
 
-check_env() {
-  if ! command -v opencode &>/dev/null; then
-    echo "Warning: OpenCode is not installed."
-    echo "  Install: curl -fsSL https://opencode.ai/install | bash"
-    echo ""
+setup_api_key() {
+  if [ -n "${ALPHAVANTAGE_API_KEY:-}" ]; then
+    echo "  - ALPHAVANTAGE_API_KEY already set, skipping"
+    return
   fi
-  if [ -z "${ALPHAVANTAGE_API_KEY:-}" ]; then
-    echo "Warning: ALPHAVANTAGE_API_KEY environment variable is not set."
-    echo "  Set: export ALPHAVANTAGE_API_KEY='your_key'"
-    echo "  Permanent: echo 'export ALPHAVANTAGE_API_KEY=\"your_key\"' >> ~/.bashrc"
-    echo ""
+
+  echo ""
+  echo "Alpha Vantage API key is required for market data."
+  echo "  Get a free key: https://www.alphavantage.co/support/#api-key"
+  echo ""
+  read -rp "Enter your API key (or press Enter to skip): " api_key
+
+  if [ -z "$api_key" ]; then
+    echo "  Skipped. Set ALPHAVANTAGE_API_KEY later in your shell rc."
+    return
+  fi
+
+  # Detect shell rc file
+  local rc_file=""
+  case "${SHELL:-}" in
+    */zsh) rc_file="$HOME/.zshrc" ;;
+    */bash) rc_file="$HOME/.bashrc" ;;
+  esac
+
+  if [ -n "$rc_file" ]; then
+    echo "export ALPHAVANTAGE_API_KEY='$api_key'" >> "$rc_file"
+    export ALPHAVANTAGE_API_KEY="$api_key"
+    echo "  Saved to $rc_file"
+    echo "  Run: source $rc_file"
+  else
+    echo "  Unknown shell ($SHELL). Add this to your shell rc manually:"
+    echo "    export ALPHAVANTAGE_API_KEY='$api_key'"
   fi
 }
 
@@ -135,12 +156,13 @@ if [ "$MODE" = "global" ]; then
 else
   TARGET="$(pwd)/.opencode"
   install_to "$TARGET"
+  add_mcp_config "$TARGET/opencode.json"
 fi
 
 install_python
 
 echo ""
-check_env
+setup_api_key
 
 echo ""
 echo "Done! Use @finance-advisor in OpenCode."
