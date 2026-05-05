@@ -2,55 +2,52 @@
 
 ## Project Type
 
-OpenCode multi-agent system (config only, no build/test). 5 agents + 1 skill + 4 Python scripts + 1 install script.
+OpenCode multi-agent system (config only, no build/test).
 
 ## Key Architecture
 
-- This repo is the **source** for agents/skills. `install.sh` copies them to the user's OpenCode config.
-- `opencode.json` is gitignored. Use `opencode.json.example` as template.
-- Agents live in `agents/` (dev source). Skills live in `skills/financial-analyst/`.
-- Install targets: `~/.config/opencode/` (global) or `.opencode/` (project-local).
+- **Source repo**: This repo is the source for agents/skills. `install.sh` copies them to the user's OpenCode config.
+- **Directory layout**:
+  - `agents/` — Primary agent (`finance-advisor.md`) and subagents (portfolio-analyzer, market-researcher, rebalancing-engine, stock-analyzer)
+  - `skills/financial-analyst/` — Python calculation scripts (`scripts/*.py`) and `SKILL.md`
+  - `install.sh` — Installation script
+- **Config**: `opencode.json` is gitignored. Use `opencode.json.example` as template.
 
-## Installation / Distribution
+## Installation / Development Setup
 
-- `install.sh -g` — global install to `~/.config/opencode/`
-- `install.sh -p` — project install to `$(pwd)/.opencode/`
-- `add_mcp_config()` in install.sh merges Alpha Vantage MCP into existing `opencode.json` without overwriting other config.
-- Requirements: `pip install -r requirements.txt` (openpyxl for Excel; CSV-only users can skip).
+- **Global install**: `bash install.sh -g` (installs to `~/.config/opencode/`)
+- **Project install**: `bash install.sh -p` (installs to `$(pwd)/.opencode/`)
+- **Python deps**: `pip install -r requirements.txt` (openpyxl; CSV-only users can skip)
+- **Alpha Vantage API key**: Set `ALPHAVANTAGE_API_KEY` env var before use.
 
-## Alpha Vantage MCP
+## Agent Definitions
 
-- Calls go through `alphavantage_TOOL_LIST` / `_GET` / `_CALL`. Do NOT call raw HTTP.
-- API key: shell env var `ALPHAVANTAGE_API_KEY`, referenced as `{env:ALPHAVANTAGE_API_KEY}` in `opencode.json`.
-- Key must NOT be hardcoded in any file.
-- Remote URL: `https://mcp.alphavantage.co/mcp?apikey={env:ALPHAVANTAGE_API_KEY}`
+Each agent is defined in `agents/*.md` with YAML front matter:
 
-## Agent Conventions
+```yaml
+---
+description: Agent description
+mode: primary|subagent
+temperature: 0.1
+permission:
+  read: allow
+  edit: deny|allow
+  write: deny|allow
+  bash: allow
+  alphavantage*: allow
+---
+```
 
-- Primary: `finance-advisor` (orchestrator). Subagents: `portfolio-analyzer`, `market-researcher`, `rebalancing-engine`, `stock-analyzer`.
-- Agents are LLM-driven — Python scripts are precision calculators, NOT the core logic.
-- Subagents have `edit: false, write: false` (read-only). Only primary agent can write files.
-- User-facing output: **Korean**. Code/output/comments: **English**.
+**Key agents**:
+- `finance-advisor.md` — Primary orchestrator (can write files)
+- `portfolio-analyzer.md` — Reads Excel/CSV, calculates portfolio metrics
+- `market-researcher.md` — Fetches Alpha Vantage data, analyzes economic news
+- `rebalancing-engine.md` — Generates rebalancing recommendations
+- `stock-analyzer.md` — Deep-dive stock analysis, optional PDF generation
 
-## Design Philosophy
+## Python Scripts
 
-- **Token efficiency first**: Minimize intermediate steps. LLM analyzes raw API responses directly instead of piping through Python scripts (e.g., `NEWS_SENTIMENT` → LLM reasoning, not `NEWS_SENTIMENT` → script → LLM).
-- **Scripts are calculators, not business logic**: Python scripts handle deterministic math (ratios, DCF, rebalancing). Economic judgment, sentiment analysis, and investment recommendations are LLM-driven.
-- **Economic context before analysis**: `@finance-advisor` must gather current economic conditions from `@market-researcher` before DCF valuation, ratio analysis, or rebalancing. Assumptions (WACC, growth rates) are adjusted based on the macro environment.
-- **No intermediate files**: All scripts use `--stdin` and stdout only. No temp files or disk writes.
-- **Config over code**: This repo contains agent/skill definitions and calculation scripts. No build step, no tests, no CI. Install via `install.sh`.
-
-## Economic Environment & News
-
-- `@market-researcher` fetches news via Alpha Vantage `NEWS_SENTIMENT` API.
-- The market-researcher **analyzes the raw API response directly with LLM**. No intermediate Python script is involved.
-- This direct analysis minimizes token usage.
-- `@finance-advisor` must request an economic context summary **before** specialized analysis (DCF, rebalancing, ratios) to ensure recommendations reflect current conditions.
-- Based on the summary (e.g., rate hikes, high inflation), `@finance-advisor` adjusts assumptions like WACC or terminal growth rate.
-
-## Python Scripts (skills/financial-analyst/scripts/)
-
-All support `--stdin` for pipe input. Never write intermediate files to disk.
+All scripts are located in `skills/financial-analyst/scripts/` and support `--stdin`:
 
 | Script | Purpose |
 |--------|---------|
@@ -59,13 +56,27 @@ All support `--stdin` for pipe input. Never write intermediate files to disk.
 | `rebalancing_calculator.py` | Rebalancing trade math (simple method only, no numpy) |
 | `portfolio_metrics.py` | Portfolio-level return, allocation, and concentration analysis |
 
-## Data Input
+**Script conventions**:
+- All scripts use `--stdin` and stdout only (no temp files)
+- Input format: JSON via stdin
+- Output format: Text or JSON (use `--format json`)
 
-- No fixed paths. User provides file path conversationally during opencode session.
-- Formats: Excel (.xlsx via openpyxl), CSV (standard library).
-- Load skill: `skill(name="financial-analyst")`
+## Development Guidelines (Andrej Karpathy Principles)
 
-## PDF Reports
+Source: [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills)
 
-- Only on explicit user request (keywords: "PDF report", "generate PDF", etc.)
-- Workflow: `/tmp/report.md` → `pandoc` + `xelatex` → `$PWD/filename.pdf` → cleanup `/tmp/`
+### 1. Think Before Coding
+- **State assumptions explicitly**: In financial analysis, clearly state assumptions like "Assuming 10% revenue growth based on historical trends".
+- **Stop when confused**: If API responses are unclear, pause and ask for clarification.
+
+### 2. Simplicity First
+- **No features beyond what was asked**: Don't add extra financial metrics unless requested.
+- **No abstractions for single-use code**: Python scripts are simple calculators, not frameworks.
+
+### 3. Surgical Changes
+- **Don't "improve" adjacent code**: Match existing style exactly.
+- **Don't refactor things that aren't broken**: Only modify code directly related to the current task.
+
+### 4. Goal-Driven Execution
+- **Define success criteria**: Transform "Analyze portfolio" → "Calculate allocation, returns, and concentration, then present findings".
+- **Verify each step**: For multi-step tasks, verify outputs before proceeding.
