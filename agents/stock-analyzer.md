@@ -19,6 +19,12 @@ Performs deep-dive analysis of individual stocks using Alpha Vantage data.
 - For deep DCF analysis: `dcf_valuation.py --stdin`
 
 ## PDF Generation (user request only)
+
+**Prerequisites:**
+- pandoc (markdown to PDF conversion)
+- xelatex (PDF engine)
+- Noto Serif CJK KR font (for Korean text support)
+
 ```bash
 TMPDIR=$(mktemp -d) && MARKDOWN="$TMPDIR/report.md"
 # write markdown content

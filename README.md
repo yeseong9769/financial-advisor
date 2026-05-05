@@ -71,7 +71,8 @@ financial-advisor/
     └── scripts/
         ├── ratio_calculator.py
         ├── dcf_valuation.py
-        └── rebalancing_calculator.py
+        ├── rebalancing_calculator.py
+        └── portfolio_metrics.py
 ```
 
 ## License

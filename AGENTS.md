@@ -42,8 +42,19 @@ permission:
 - `finance-advisor.md` — Primary orchestrator (can write files)
 - `portfolio-analyzer.md` — Reads Excel/CSV, calculates portfolio metrics
 - `market-researcher.md` — Fetches Alpha Vantage data, analyzes economic news
-- `rebalancing-engine.md` — Generates rebalancing recommendations
+- `rebalancing-engine.md` — Generates rebalancing recommendations (optimized for Korean market)
 - `stock-analyzer.md` — Deep-dive stock analysis, optional PDF generation
+
+### Korean Tax Considerations (for Rebalancing)
+
+When generating rebalancing recommendations, the system accounts for Korean tax regulations:
+
+- **Capital gains tax**: 22% (incl. local tax) on annual gains exceeding KRW 2.5M basic deduction
+- **Dividend tax**: 15.4% withholding
+- **ISA account**: Tax-exempt benefits available
+- **Loss offsetting**: Net losses can offset gains in the same year
+
+These considerations are hard-coded in `rebalancing-engine.md` and may need adjustment for users outside Korea.
 
 ## Python Scripts
 

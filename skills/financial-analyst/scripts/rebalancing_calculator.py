@@ -23,12 +23,15 @@ class PortfolioRebalancer:
         if abs(sum(target_weights.values()) - 1.0) > 0.01:
             raise ValueError(f"Target weights must sum to 1.0 (got {sum(target_weights.values()):.3f})")
 
-        assets = list(current_values.keys())
+        # Combine assets from both current and target (in case target includes new assets)
+        all_assets = set(current_values.keys()) | set(target_weights.keys())
+        assets = list(all_assets)
+        
         total_value = sum(current_values.values())
 
         target_values = {a: target_weights.get(a, 0) * total_value for a in assets}
-        trades = {a: target_values[a] - current_values[a] for a in assets}
-        current_alloc = {a: current_values[a] / total_value for a in assets}
+        trades = {a: target_values[a] - current_values.get(a, 0) for a in assets}
+        current_alloc = {a: current_values.get(a, 0) / total_value for a in assets}
         target_alloc = {a: target_values[a] / total_value for a in assets}
         alloc_change = {a: target_alloc[a] - current_alloc[a] for a in assets}
 

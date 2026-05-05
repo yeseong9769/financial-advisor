@@ -280,6 +280,8 @@ class DCFModel:
         def fmt_money(val: float) -> str:
             if val is None:
                 return "N/A (WACC <= growth)"
+            if math.isnan(val) or math.isinf(val):
+                return "N/A (Invalid calculation)"
             if abs(val) >= 1e9:
                 return f"${val / 1e9:,.2f}B"
             if abs(val) >= 1e6:
@@ -289,7 +291,11 @@ class DCFModel:
             return f"${val:,.2f}"
 
         lines.append(f"\n--- WACC ---")
-        lines.append(f"  Weighted Average Cost of Capital: {results['wacc'] * 100:.2f}%")
+        wacc = results['wacc']
+        if math.isnan(wacc) or math.isinf(wacc):
+            lines.append(f"  Weighted Average Cost of Capital: N/A (Invalid calculation)")
+        else:
+            lines.append(f"  Weighted Average Cost of Capital: {wacc * 100:.2f}%")
 
         lines.append(f"\n--- REVENUE PROJECTIONS ---")
         for i, rev in enumerate(results["projected_revenue"], 1):
@@ -398,6 +404,10 @@ def main() -> None:
                 return {k: sanitize(v) for k, v in obj.items()}
             if isinstance(obj, list):
                 return [sanitize(v) for v in obj]
+            if isinstance(obj, float):
+                # Convert NaN/Inf to None for JSON serialization
+                if math.isnan(obj) or math.isinf(obj):
+                    return None
             return obj
 
         print(json.dumps(sanitize(results), indent=2))

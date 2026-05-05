@@ -282,6 +282,19 @@ class FinancialRatioCalculator:
 
         low, typical, high = benchmarks
 
+        # Valuation ratios: lower is better
+        valuation_ratios = {"pe_ratio", "pb_ratio", "ps_ratio", "ev_ebitda", "peg_ratio"}
+        if ratio_key in valuation_ratios:
+            if value <= low:
+                return "Excellent - undervalued or attractive"
+            elif value <= typical:
+                return "Good - reasonable valuation"
+            elif value <= high:
+                return "Acceptable - fairly valued"
+            else:
+                return "Concern - potentially overvalued"
+
+        # DSO (Days Sales Outstanding): lower is better
         if ratio_key == "dso":
             if value <= low:
                 return "Excellent - collections well above average"
@@ -292,6 +305,7 @@ class FinancialRatioCalculator:
             else:
                 return "Concern - collections significantly slower than peers"
 
+        # Debt-to-Equity: lower is better (conservative leverage)
         if ratio_key == "debt_to_equity":
             if value <= low:
                 return "Conservative leverage - strong equity position"
@@ -302,6 +316,7 @@ class FinancialRatioCalculator:
             else:
                 return "High leverage - potential financial risk"
 
+        # Default: higher is better (profitability, liquidity, efficiency ratios)
         if value < low:
             return "Below average - needs improvement"
         elif value <= typical:
