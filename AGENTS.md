@@ -2,75 +2,72 @@
 
 ## Project Type
 
-OpenCode multi-agent system (config only, no build/test).
+OpenCode multi-agent system config. No build/test pipeline. Changes to `agents/*.md` and `scripts/*.py` take effect after `install.sh` copies them to the target OpenCode config directory.
 
-## Key Architecture
+## Architecture
 
-- **Source repo**: This repo is the source for agents/skills. `install.sh` copies them to the user's OpenCode config.
-- **Directory layout**:
-  - `agents/` — Primary agent (`finance-advisor.md`) and subagents (portfolio-analyzer, market-researcher, rebalancing-engine, stock-analyzer)
-  - `skills/financial-analyst/` — Python calculation scripts (`scripts/*.py`) and `SKILL.md`
-  - `install.sh` — Installation script
-- **Config**: `opencode.json` is gitignored. Use `opencode.json.example` as template.
+This repo is the **source** for agents/skills. `install.sh` copies them to the user's OpenCode config (`~/.config/opencode/` or `./.opencode/`).
 
-## Installation / Development Setup
+**4 agents** (defined in `agents/*.md` with YAML front matter):
 
-- **Global install**: `bash install.sh -g` (installs to `~/.config/opencode/`)
-- **Project install**: `bash install.sh -p` (installs to `$(pwd)/.opencode/`)
-- **Python deps**: `pip install -r requirements.txt` (openpyxl; CSV-only users can skip)
-- **Alpha Vantage API key**: Set `ALPHAVANTAGE_API_KEY` env var before use.
+| Agent | Role | Mode |
+|-------|------|------|
+| `finance-advisor.md` | Orchestrator. Routes queries to subagents. Handles simple quotes **directly** via Alpha Vantage API without subagent hops. | — |
+| `market-researcher.md` | **Raw data fetch only**. Returns API responses with zero interpretation/summarization. | — |
+| `portfolio-manager.md` | Portfolio allocation, returns, concentration, rebalancing. Basic (summary) vs Deep (scenarios + Korean tax). | basic/deep |
+| `stock-analyzer.md` | Stock overview. Basic (price + 4 metrics) vs Deep (DCF + ratio calc + optional PDF). | basic/deep |
 
-## Agent Definitions
+**2 Python scripts** (`skills/financial-analyst/scripts/`), stdin/stdout only:
 
-Each agent is defined in `agents/*.md` with YAML front matter:
+| Script | Used When |
+|--------|-----------|
+| `dcf_valuation.py` | Deep stock analysis. DCF enterprise valuation + WACC + 2-way sensitivity (5×5 table). |
+| `ratio_calculator.py` | Deep stock analysis. 20 financial ratios + benchmark-based interpretation. |
 
-```yaml
----
-description: Agent description
-mode: primary|subagent
-temperature: 0.1
-permission:
-  read: allow
-  edit: deny|allow
-  write: deny|allow
-  bash: allow
-  alphavantage*: allow
----
+**Deleted** (no longer exist): `portfolio-analyzer.md`, `rebalancing-engine.md`, `portfolio_metrics.py`, `rebalancing_calculator.py`.
+
+## Design Decisions
+
+- **Basic vs Deep split**: `/finance-advisor.md` triggers Deep mode on keywords like "자세히", "심층", "분석", "리밸런싱", "DCF", "PDF". Default is Basic (3-5 bullet points, fast).
+- **Raw data fetcher**: `market-researcher` does not analyze. It returns trimmed API responses. The caller (`finance-advisor` or `stock-analyzer`) decides what to do with the data.
+- **No script for simple math**: Allocation %, HHI, rebalancing trade amounts — agents calculate directly. Scripts are only for complex multi-step calculations (DCF 5-year projection, 20-ratio analysis).
+- **Economic context OFF by default**: `finance-advisor` skips `@market-researcher` for news sentiment unless Deep mode specifically benefits from it (e.g. DCF WACC adjustment, rebalancing in volatile markets).
+
+## Korean Tax Default
+
+`portfolio-manager` Deep mode applies Korean tax rules by default:
+- Capital gains tax: 22% on annual gains exceeding KRW 2.5M basic deduction
+- Dividend withholding: 15.4%
+- ISA account tax-exempt benefits, loss offsetting
+
+Adjust for non-Korean users when requested.
+
+## Setup
+
+```bash
+# Install to global OpenCode config (~/.config/opencode/)
+bash install.sh -g
+
+# Install Python dep (only needed for Excel reading; skip if CSV-only)
+pip install -r requirements.txt
+
+# Requires ALPHAVANTAGE_API_KEY env var
+export ALPHAVANTAGE_API_KEY=your_key
 ```
 
-**Key agents**:
-- `finance-advisor.md` — Primary orchestrator (can write files)
-- `portfolio-analyzer.md` — Reads Excel/CSV, calculates portfolio metrics
-- `market-researcher.md` — Fetches Alpha Vantage data, analyzes economic news
-- `rebalancing-engine.md` — Generates rebalancing recommendations (optimized for Korean market)
-- `stock-analyzer.md` — Deep-dive stock analysis, optional PDF generation
+`opencode.json` is gitignored. Use `opencode.json.example` as the MCP config template.
 
-### Korean Tax Considerations (for Rebalancing)
+## Script Conventions
 
-When generating rebalancing recommendations, the system accounts for Korean tax regulations:
+All scripts accept `--stdin` and write to stdout. No temp files.
+- Input: JSON via stdin
+- Output: Text or JSON via `--format json`
 
-- **Capital gains tax**: 22% (incl. local tax) on annual gains exceeding KRW 2.5M basic deduction
-- **Dividend tax**: 15.4% withholding
-- **ISA account**: Tax-exempt benefits available
-- **Loss offsetting**: Net losses can offset gains in the same year
+## Style (Tightly Applied)
 
-These considerations are hard-coded in `rebalancing-engine.md` and may need adjustment for users outside Korea.
-
-## Python Scripts
-
-All scripts are located in `skills/financial-analyst/scripts/` and support `--stdin`:
-
-| Script | Purpose |
-|--------|---------|
-| `ratio_calculator.py` | Financial ratios (profitability, liquidity, leverage, efficiency, valuation) |
-| `dcf_valuation.py` | DCF valuation with WACC, terminal value, sensitivity analysis |
-| `rebalancing_calculator.py` | Rebalancing trade math (simple method only, no numpy) |
-| `portfolio_metrics.py` | Portfolio-level return, allocation, and concentration analysis |
-
-**Script conventions**:
-- All scripts use `--stdin` and stdout only (no temp files)
-- Input format: JSON via stdin
-- Output format: Text or JSON (use `--format json`)
+- Simplicity first: scripts are calculators, not frameworks. No abstractions for single-use code.
+- Surgical changes: match the exact existing style. Do not "improve" adjacent code.
+- Goal-driven: define success criteria explicitly before analysis. Verify outputs at each step.
 
 ## Development Guidelines (Andrej Karpathy Principles)
 

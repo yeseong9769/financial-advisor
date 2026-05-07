@@ -45,12 +45,12 @@ Show me AAPL current price
 
 ## Features
 
-| Task | Agent |
-|------|-------|
-| Portfolio statistics | `@portfolio-analyzer` |
-| Market data/research | `@market-researcher` |
-| Rebalancing | `@rebalancing-engine` |
-| Stock deep-dive / PDF | `@stock-analyzer` |
+| Task | Agent | Mode |
+|------|-------|------|
+| Portfolio statistics / Rebalancing | `@portfolio-manager` | Basic / Deep |
+| Market data (raw) | `@market-researcher` | — |
+| Stock overview | `@stock-analyzer` | Basic |
+| Stock deep-dive / DCF / PDF | `@stock-analyzer` | Deep |
 
 ## Architecture
 
@@ -61,18 +61,15 @@ financial-advisor/
 ├── opencode.json.example   ← MCP config template
 ├── requirements.txt        ← Python dependencies (openpyxl)
 ├── agents/                 ← OpenCode agent definitions
-│   ├── finance-advisor.md
-│   ├── portfolio-analyzer.md
+│   ├── finance-advisor.md  ← Primary orchestrator
 │   ├── market-researcher.md
-│   ├── rebalancing-engine.md
+│   ├── portfolio-manager.md
 │   └── stock-analyzer.md
 └── skills/financial-analyst/
     ├── SKILL.md
     └── scripts/
-        ├── ratio_calculator.py
         ├── dcf_valuation.py
-        ├── rebalancing_calculator.py
-        └── portfolio_metrics.py
+        └── ratio_calculator.py
 ```
 
 ## License
