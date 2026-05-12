@@ -26,6 +26,193 @@ def safe_divide(numerator: float, denominator: float, default: float = 0.0) -> f
     return numerator / denominator
 
 
+def _fmt_money(val: Optional[float]) -> str:
+    if val is None:
+        return "N/A (WACC <= growth)"
+    if math.isnan(val) or math.isinf(val):
+        return "N/A (Invalid calculation)"
+    if abs(val) >= 1e9:
+        return f"${val / 1e9:,.2f}B"
+    if abs(val) >= 1e6:
+        return f"${val / 1e6:,.2f}M"
+    if abs(val) >= 1e3:
+        return f"${val / 1e3:,.1f}K"
+    return f"${val:,.2f}"
+
+
+def _sanitize(obj: Any) -> Any:
+    if isinstance(obj, dict):
+        return {k: _sanitize(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize(v) for v in obj]
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+    return obj
+
+
+def run_single(historical: Dict[str, Any], assumptions: Dict[str, Any]) -> Dict[str, Any]:
+    """Run a single DCF valuation with given historical financials and assumptions."""
+    model = DCFModel()
+    model.set_historical_financials(historical)
+    model.set_assumptions(assumptions)
+    return model.run_full_valuation()
+
+
+def build_comparison(results_by_scenario: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+    """Build a comparison table dict across scenario results (ev_exit, ev_perpetuity, share_price_exit, share_price_perpetuity per scenario)."""
+    comparison = {}
+    for name, r in results_by_scenario.items():
+        comparison[name] = {
+            "ev_exit": r["enterprise_value"]["exit_multiple"],
+            "ev_perpetuity": r["enterprise_value"]["perpetuity_growth"],
+            "share_price_exit": r["value_per_share"]["exit_multiple"],
+            "share_price_perpetuity": r["value_per_share"]["perpetuity_growth"],
+        }
+    return comparison
+
+
+def format_scenario_detail(
+    name: str,
+    results: Dict[str, Any],
+    show_sensitivity: bool = False,
+) -> str:
+    """
+    Format detailed output for one scenario.
+
+    If name is empty (legacy single-scenario mode), prints the canonical
+    "DCF VALUATION ANALYSIS" header without a scenario label.
+    If name is non-empty, prints "[NAME] DETAIL" section header.
+    """
+    lines: List[str] = []
+    if name:
+        lines.append(f"\n{'=' * 70}")
+        lines.append(f"[{name.upper()}] DETAIL")
+        lines.append(f"{'=' * 70}")
+    else:
+        lines.append("=" * 70)
+        lines.append("DCF VALUATION ANALYSIS")
+        lines.append("=" * 70)
+
+    lines.append(f"\n--- WACC ---")
+    wacc = results["wacc"]
+    if math.isnan(wacc) or math.isinf(wacc):
+        lines.append(f"  Weighted Average Cost of Capital: N/A (Invalid)")
+    else:
+        lines.append(f"  Weighted Average Cost of Capital: {wacc * 100:.2f}%")
+
+    lines.append(f"\n--- REVENUE PROJECTIONS ---")
+    for i, rev in enumerate(results["projected_revenue"], 1):
+        lines.append(f"  Year {i}: {_fmt_money(rev)}")
+
+    lines.append(f"\n--- FREE CASH FLOW PROJECTIONS ---")
+    for i, fcf in enumerate(results["projected_fcf"], 1):
+        lines.append(f"  Year {i}: {_fmt_money(fcf)}")
+
+    lines.append(f"\n--- TERMINAL VALUE ---")
+    lines.append(
+        f"  Perpetuity Growth Method: {_fmt_money(results['terminal_value']['perpetuity_growth'])}"
+    )
+    lines.append(
+        f"  Exit Multiple Method:     {_fmt_money(results['terminal_value']['exit_multiple'])}"
+    )
+
+    lines.append(f"\n--- ENTERPRISE VALUE ---")
+    lines.append(
+        f"  Perpetuity Growth Method: {_fmt_money(results['enterprise_value']['perpetuity_growth'])}"
+    )
+    lines.append(
+        f"  Exit Multiple Method:     {_fmt_money(results['enterprise_value']['exit_multiple'])}"
+    )
+
+    lines.append(f"\n--- EQUITY VALUE ---")
+    lines.append(
+        f"  Perpetuity Growth Method: {_fmt_money(results['equity_value']['perpetuity_growth'])}"
+    )
+    lines.append(
+        f"  Exit Multiple Method:     {_fmt_money(results['equity_value']['exit_multiple'])}"
+    )
+
+    lines.append(f"\n--- VALUE PER SHARE ---")
+    vps = results["value_per_share"]
+    lines.append(f"  Perpetuity Growth Method: ${vps['perpetuity_growth']:,.2f}")
+    lines.append(f"  Exit Multiple Method:     ${vps['exit_multiple']:,.2f}")
+
+    if show_sensitivity:
+        sens = results["sensitivity_analysis"]
+        lines.append(f"\n--- SENSITIVITY ANALYSIS (Enterprise Value) ---")
+        lines.append(f"  WACC vs Terminal Growth Rate")
+        lines.append("")
+
+        header = "  {:>10s}".format("WACC \\ g")
+        for g in sens["growth_values"]:
+            header += f"  {g * 100:>8.1f}%"
+        lines.append(header)
+        lines.append("  " + "-" * (10 + 10 * len(sens["growth_values"])))
+
+        for i, w in enumerate(sens["wacc_values"]):
+            row = f"  {w * 100:>9.1f}%"
+            for j in range(len(sens["growth_values"])):
+                val = sens["enterprise_value_table"][i][j]
+                row += f"  {_fmt_money(val):>8s}"
+            lines.append(row)
+
+    return "\n".join(lines)
+
+
+def format_scenarios_text(
+    results_by_scenario: Dict[str, Dict[str, Any]]
+) -> str:
+    """
+    Format multi-scenario comparison table plus per-scenario detail.
+
+    Base scenario (case-insensitive match) gets the full sensitivity table.
+    Other scenarios get abbreviated output (no sensitivity table).
+    """
+    comparison = build_comparison(results_by_scenario)
+
+    lines: List[str] = []
+    lines.append("=" * 70)
+    lines.append("DCF VALUATION ANALYSIS — SCENARIO COMPARISON")
+    lines.append("=" * 70)
+    lines.append("")
+    lines.append(
+        f"{'Scenario':<12} | {'EV (Exit)':>12} | {'EV (Perp)':>12} | "
+        f"{'$/share (Exit)':>14} | {'$/share (Perp)':>14}"
+    )
+    lines.append("-" * 70)
+
+    for name in results_by_scenario:
+        c = comparison[name]
+        lines.append(
+            f"{name:<12} | {_fmt_money(c['ev_exit']):>12} | "
+            f"{_fmt_money(c['ev_perpetuity']):>12} | "
+            f"${c['share_price_exit']:>12,.2f} | "
+            f"${c['share_price_perpetuity']:>12,.2f}"
+        )
+
+    base_name = next(
+        (n for n in results_by_scenario if n.lower() == "base"),
+        next(iter(results_by_scenario), None),
+    )
+
+    for name, results in results_by_scenario.items():
+        show_sensitivity = (name == base_name)
+        lines.append(format_scenario_detail(name, results, show_sensitivity=show_sensitivity))
+
+    lines.append("\n" + "=" * 70)
+    return "\n".join(lines)
+
+
+def _format_failed_scenarios(failed: Dict[str, str]) -> str:
+    """Format failed scenario list for text output."""
+    lines: List[str] = []
+    lines.append("\n--- SKIPPED / FAILED SCENARIOS ---")
+    for name, reason in failed.items():
+        lines.append(f"  [{name}] FAILED: {reason}")
+    return "\n".join(lines)
+
+
 class DCFModel:
 
     def __init__(self) -> None:
@@ -272,97 +459,8 @@ class DCFModel:
         }
 
     def format_text(self, results: Dict[str, Any]) -> str:
-        lines: List[str] = []
-        lines.append("=" * 70)
-        lines.append("DCF VALUATION ANALYSIS")
-        lines.append("=" * 70)
-
-        def fmt_money(val: float) -> str:
-            if val is None:
-                return "N/A (WACC <= growth)"
-            if math.isnan(val) or math.isinf(val):
-                return "N/A (Invalid calculation)"
-            if abs(val) >= 1e9:
-                return f"${val / 1e9:,.2f}B"
-            if abs(val) >= 1e6:
-                return f"${val / 1e6:,.2f}M"
-            if abs(val) >= 1e3:
-                return f"${val / 1e3:,.1f}K"
-            return f"${val:,.2f}"
-
-        lines.append(f"\n--- WACC ---")
-        wacc = results['wacc']
-        if math.isnan(wacc) or math.isinf(wacc):
-            lines.append(f"  Weighted Average Cost of Capital: N/A (Invalid calculation)")
-        else:
-            lines.append(f"  Weighted Average Cost of Capital: {wacc * 100:.2f}%")
-
-        lines.append(f"\n--- REVENUE PROJECTIONS ---")
-        for i, rev in enumerate(results["projected_revenue"], 1):
-            lines.append(f"  Year {i}: {fmt_money(rev)}")
-
-        lines.append(f"\n--- FREE CASH FLOW PROJECTIONS ---")
-        for i, fcf in enumerate(results["projected_fcf"], 1):
-            lines.append(f"  Year {i}: {fmt_money(fcf)}")
-
-        lines.append(f"\n--- TERMINAL VALUE ---")
-        lines.append(
-            f"  Perpetuity Growth Method: "
-            f"{fmt_money(results['terminal_value']['perpetuity_growth'])}"
-        )
-        lines.append(
-            f"  Exit Multiple Method:     "
-            f"{fmt_money(results['terminal_value']['exit_multiple'])}"
-        )
-
-        lines.append(f"\n--- ENTERPRISE VALUE ---")
-        lines.append(
-            f"  Perpetuity Growth Method: "
-            f"{fmt_money(results['enterprise_value']['perpetuity_growth'])}"
-        )
-        lines.append(
-            f"  Exit Multiple Method:     "
-            f"{fmt_money(results['enterprise_value']['exit_multiple'])}"
-        )
-
-        lines.append(f"\n--- EQUITY VALUE ---")
-        lines.append(
-            f"  Perpetuity Growth Method: "
-            f"{fmt_money(results['equity_value']['perpetuity_growth'])}"
-        )
-        lines.append(
-            f"  Exit Multiple Method:     "
-            f"{fmt_money(results['equity_value']['exit_multiple'])}"
-        )
-
-        lines.append(f"\n--- VALUE PER SHARE ---")
-        vps = results["value_per_share"]
-        lines.append(f"  Perpetuity Growth Method: ${vps['perpetuity_growth']:,.2f}")
-        lines.append(f"  Exit Multiple Method:     ${vps['exit_multiple']:,.2f}")
-
-        sens = results["sensitivity_analysis"]
-        lines.append(f"\n--- SENSITIVITY ANALYSIS (Enterprise Value) ---")
-        lines.append(f"  WACC vs Terminal Growth Rate")
-        lines.append("")
-
-        header = "  {:>10s}".format("WACC \\ g")
-        for g in sens["growth_values"]:
-            header += f"  {g * 100:>8.1f}%"
-        lines.append(header)
-        lines.append("  " + "-" * (10 + 10 * len(sens["growth_values"])))
-
-        for i, w in enumerate(sens["wacc_values"]):
-            row = f"  {w * 100:>9.1f}%"
-            for j in range(len(sens["growth_values"])):
-                val = sens["enterprise_value_table"][i][j]
-                if val is None:
-                    row += f"  {'N/A':>8s}"
-                else:
-                    row += f"  {fmt_money(val):>8s}"
-            lines.append(row)
-
-        lines.append("\n" + "=" * 70)
-        return "\n".join(lines)
+        """Single-scenario text output (legacy wrapper for backward compat)."""
+        return format_scenario_detail("", results, show_sensitivity=True)
 
 
 def main() -> None:
@@ -384,35 +482,58 @@ def main() -> None:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    model = DCFModel()
-    model.set_historical_financials(data.get("historical", {}))
-
+    historical = data.get("historical", {})
     assumptions = data.get("assumptions", {})
+
     if args.projection_years is not None:
         assumptions["projection_years"] = args.projection_years
-    model.set_assumptions(assumptions)
 
-    try:
-        results = model.run_full_valuation()
-    except ValueError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+    scenarios_input = assumptions.get("scenarios")
 
-    if args.format == "json":
-        def sanitize(obj: Any) -> Any:
-            if isinstance(obj, dict):
-                return {k: sanitize(v) for k, v in obj.items()}
-            if isinstance(obj, list):
-                return [sanitize(v) for v in obj]
-            if isinstance(obj, float):
-                # Convert NaN/Inf to None for JSON serialization
-                if math.isnan(obj) or math.isinf(obj):
-                    return None
-            return obj
+    if scenarios_input:
+        global_defaults = {k: v for k, v in assumptions.items() if k != "scenarios"}
+        results_by_scenario: Dict[str, Dict[str, Any]] = {}
+        failed: Dict[str, str] = {}
+        for name, scenario_assumptions in scenarios_input.items():
+            merged = {**global_defaults, **scenario_assumptions}
+            try:
+                results_by_scenario[name] = run_single(historical, merged)
+            except ValueError as e:
+                failed[name] = str(e)
+                print(f"Warning: scenario '{name}' skipped — {e}", file=sys.stderr)
 
-        print(json.dumps(sanitize(results), indent=2))
+        if not results_by_scenario:
+            print("Error: all scenarios failed", file=sys.stderr)
+            sys.exit(1)
+
+        if args.format == "json":
+            output = {
+                "scenarios": _sanitize(results_by_scenario),
+                "comparison": _sanitize(build_comparison(results_by_scenario)),
+            }
+            if failed:
+                output["failed_scenarios"] = failed
+            print(json.dumps(output, indent=2))
+        else:
+            text = format_scenarios_text(results_by_scenario)
+            if failed:
+                text += _format_failed_scenarios(failed)
+            print(text)
     else:
-        print(model.format_text(results))
+        model = DCFModel()
+        model.set_historical_financials(historical)
+        model.set_assumptions(assumptions)
+
+        try:
+            results = model.run_full_valuation()
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        if args.format == "json":
+            print(json.dumps(_sanitize(results), indent=2))
+        else:
+            print(model.format_text(results))
 
 
 if __name__ == "__main__":
