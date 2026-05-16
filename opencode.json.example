@@ -1,9 +1,3 @@
 {
-  "$schema": "https://opencode.ai/config.json",
-  "mcp": {
-    "alphavantage": {
-      "type": "remote",
-      "url": "https://mcp.alphavantage.co/mcp?apikey={env:ALPHAVANTAGE_API_KEY}"
-    }
-  }
+  "$schema": "https://opencode.ai/config.json"
 }

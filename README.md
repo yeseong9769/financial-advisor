@@ -28,7 +28,6 @@ Only available in the current project.
 ## Prerequisites
 
 - [OpenCode](https://opencode.ai) installed
-- Alpha Vantage API key ([get one free](https://www.alphavantage.co/support/#api-key))
 - Python 3.x
 
 ## Usage
@@ -58,8 +57,8 @@ Show me AAPL current price
 financial-advisor/
 ├── install.sh              ← Install script
 ├── AGENTS.md               ← Development rules
-├── opencode.json.example   ← MCP config template
-├── requirements.txt        ← Python dependencies (openpyxl)
+├── opencode.json.example   ← Config template (MCP not required)
+├── requirements.txt        ← Python dependencies (yfinance, openpyxl)
 ├── agents/                 ← OpenCode agent definitions
 │   ├── finance-advisor.md  ← Primary orchestrator
 │   ├── market-researcher.md
@@ -68,6 +67,7 @@ financial-advisor/
 └── skills/financial-analyst/
     ├── SKILL.md
     └── scripts/
+        ├── market_data_fetcher.py  ← Data engine (yfinance)
         ├── dcf_valuation.py
         └── ratio_calculator.py
 ```

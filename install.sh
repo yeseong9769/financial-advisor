@@ -13,12 +13,14 @@ Usage:
   bash install.sh -g              Global install (~/.config/opencode/)
   bash install.sh -p              Project install (.opencode/ in current dir)
   bash install.sh -d <path>       Install to custom directory
+  bash install.sh --verify        Verify existing installation
   bash install.sh                  Interactive mode (prompts for choice)
 
 Options:
   -g, --global    Install to ~/.config/opencode/
   -p, --project   Install to .opencode/ in current directory
   -d, --dir       Install to specified project directory (e.g., -d /path/to/project — creates .opencode/ inside)
+  --verify        Check that all required files exist in the target directory
   -h, --help      Show this help
 EOF
   exit 0
@@ -47,41 +49,6 @@ choose_target() {
   esac
 }
 
-setup_api_key() {
-  if [ -n "${ALPHAVANTAGE_API_KEY:-}" ]; then
-    echo "  - ALPHAVANTAGE_API_KEY already set, skipping"
-    return
-  fi
-
-  echo ""
-  echo "Alpha Vantage API key is required for market data."
-  echo "  Get a free key: https://www.alphavantage.co/support/#api-key"
-  echo ""
-  read -rp "Enter your API key (or press Enter to skip): " api_key
-
-  if [ -z "$api_key" ]; then
-    echo "  Skipped. Set ALPHAVANTAGE_API_KEY later in your shell rc."
-    return
-  fi
-
-  # Detect shell rc file
-  local rc_file=""
-  case "${SHELL:-}" in
-    */zsh) rc_file="$HOME/.zshrc" ;;
-    */bash) rc_file="$HOME/.bashrc" ;;
-  esac
-
-  if [ -n "$rc_file" ]; then
-    echo "export ALPHAVANTAGE_API_KEY='$api_key'" >> "$rc_file"
-    export ALPHAVANTAGE_API_KEY="$api_key"
-    echo "  Saved to $rc_file"
-    echo "  Run: source $rc_file"
-  else
-    echo "  Unknown shell ($SHELL). Add this to your shell rc manually:"
-    echo "    export ALPHAVANTAGE_API_KEY='$api_key'"
-  fi
-}
-
 install_to() {
   local target="$1"
   echo "  Target: $target"
@@ -105,43 +72,45 @@ install_python() {
   fi
 }
 
-add_mcp_config() {
-  local config_file="$1"
-  local config_dir
-  config_dir="$(dirname "$config_file")"
-  mkdir -p "$config_dir"
+verify_installation() {
+  local target="$1"
+  local errors=0
 
-  if [ ! -f "$config_file" ]; then
-    cp "$REPO_DIR/opencode.json.example" "$config_file"
-    echo "  - Created opencode.json (set API key before use)"
-    return
+  echo ""
+  echo "Verifying installation at: $target"
+  echo "======================================"
+
+  for agent in finance-advisor market-researcher stock-analyzer portfolio-manager; do
+    if [ -f "$target/agents/$agent.md" ]; then
+      echo "  ✅ agents/$agent.md"
+    else
+      echo "  ❌ agents/$agent.md — MISSING"
+      errors=$((errors + 1))
+    fi
+  done
+
+  if [ -f "$target/skills/financial-analyst/SKILL.md" ]; then
+    echo "  ✅ skills/financial-analyst/SKILL.md"
+  else
+    echo "  ❌ skills/financial-analyst/SKILL.md — MISSING"
+    errors=$((errors + 1))
   fi
 
-  if python3 -c "
-import json, sys
-with open('$config_file') as f:
-    cfg = json.load(f)
-if 'alphavantage' in cfg.get('mcp', {}):
-    sys.exit(0)
-else:
-    sys.exit(1)
-" 2>/dev/null; then
-    echo "  - opencode.json: Alpha Vantage MCP already configured, skipped"
+  for script in market_data_fetcher.py dcf_valuation.py ratio_calculator.py; do
+    if [ -f "$target/skills/financial-analyst/scripts/$script" ]; then
+      echo "  ✅ skills/financial-analyst/scripts/$script"
+    else
+      echo "  ❌ skills/financial-analyst/scripts/$script — MISSING"
+      errors=$((errors + 1))
+    fi
+  done
+
+  echo ""
+  if [ "$errors" -eq 0 ]; then
+    echo "✅ All files present."
   else
-    python3 -c "
-import json
-with open('$config_file') as f:
-    cfg = json.load(f)
-if 'mcp' not in cfg:
-    cfg['mcp'] = {}
-cfg['mcp']['alphavantage'] = {
-    'type': 'remote',
-    'url': 'https://mcp.alphavantage.co/mcp?apikey={env:ALPHAVANTAGE_API_KEY}'
-}
-with open('$config_file', 'w') as f:
-    json.dump(cfg, f, indent=2)
-print('  - Alpha Vantage MCP config added to opencode.json')
-" 2>/dev/null || echo "  Warning: Failed to update opencode.json"
+    echo "❌ $errors file(s) missing."
+    exit 1
   fi
 }
 
@@ -158,6 +127,19 @@ case "${1:-}" in
       exit 1
     fi
     ;;
+  --verify)
+    if [ -n "$2" ]; then
+      verify_installation "$2"
+    elif [ -d "$HOME/.config/opencode" ]; then
+      verify_installation "$HOME/.config/opencode"
+    elif [ -d "$(pwd)/.opencode" ]; then
+      verify_installation "$(pwd)/.opencode"
+    else
+      echo "No installation found. Specify path: bash install.sh --verify <path>"
+      exit 1
+    fi
+    exit 0
+    ;;
   -h|--help) show_help ;;
   "") choose_target ;;
   *) echo "Unknown option: $1"; show_help ;;
@@ -170,23 +152,18 @@ echo ""
 if [ "$MODE" = "global" ]; then
   TARGET="$HOME/.config/opencode"
   install_to "$TARGET"
-  add_mcp_config "$TARGET/opencode.json"
 elif [ "$MODE" = "custom" ]; then
   TARGET="$CUSTOM_DIR/.opencode"
   install_to "$TARGET"
-  add_mcp_config "$CUSTOM_DIR/opencode.json"
 else
   TARGET="$(pwd)/.opencode"
   install_to "$TARGET"
-  add_mcp_config "$(pwd)/opencode.json"
 fi
 
 install_python
 
 echo ""
-setup_api_key
-
-echo ""
 echo "Done! Use @finance-advisor in OpenCode."
 echo '  Example: "@finance-advisor analyze my portfolio"'
+echo "  Verify: bash install.sh --verify"
 echo ""

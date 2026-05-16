@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Market Data Fetcher with Caching and Rate Limiting
+Market Data Fetcher with Caching
 
-Fetches market data from Alpha Vantage (primary) and Yahoo Finance (fallback).
-Implements file-based caching and rate limiting to avoid API throttling.
+Fetches market data from Yahoo Finance via yfinance library.
+Implements file-based caching to reduce repeated network calls.
 
 Usage:
     python market_data_fetcher.py --symbol AAPL --endpoint quote
@@ -11,77 +11,62 @@ Usage:
     echo '{"symbol": "AAPL", "endpoint": "quote"}' | python market_data_fetcher.py --stdin
 
 Endpoints:
-    quote       -> GLOBAL_QUOTE (cache: 5 min)
-    overview    -> COMPANY_OVERVIEW (cache: 1 day)
-    income      -> INCOME_STATEMENT (cache: 1 day)
-    balance     -> BALANCE_SHEET (cache: 1 day)
-    cashflow    -> CASH_FLOW (cache: 1 day)
-    daily       -> TIME_SERIES_DAILY (cache: 1 hour)
-    news        -> NEWS_SENTIMENT (cache: 30 min)
+    quote       -> Current price/change/volume (cache: 5 min)
+    overview    -> Company fundamentals (cache: 1 day)
+    income      -> Income statement (cache: 1 day)
+    balance     -> Balance sheet (cache: 1 day)
+    cashflow    -> Cash flow statement (cache: 1 day)
+    daily       -> Daily OHLCV time series (cache: 1 hour)
+    news        -> News articles (cache: 30 min)
 """
 
 import argparse
 import hashlib
 import json
-import os
+import math
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
 
-# Cache configuration
 CACHE_DIR = Path.home() / ".cache" / "financial-advisor"
 CACHE_TTL = {
-    "quote": 300,       # 5 minutes for price quotes
-    "daily": 3600,      # 1 hour for daily prices
-    "overview": 86400,  # 1 day for company fundamentals
-    "income": 86400,    # 1 day for financial statements
+    "quote": 300,
+    "daily": 3600,
+    "overview": 86400,
+    "income": 86400,
     "balance": 86400,
     "cashflow": 86400,
-    "news": 1800,       # 30 minutes for news
+    "news": 1800,
 }
-
-# Rate limiting
-ALPHA_VANTAGE_CALLS_PER_MINUTE = 5
-ALPHA_VANTAGE_MIN_INTERVAL = 60.0 / ALPHA_VANTAGE_CALLS_PER_MINUTE  # 12 seconds
-RATE_LIMIT_FILE = CACHE_DIR / ".av_last_call"
 
 
 def _ensure_cache_dir() -> None:
-    """Ensure cache directory exists."""
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _get_cache_key(symbol: str, endpoint: str) -> str:
-    """Generate cache file key from symbol and endpoint."""
     key = f"{symbol.upper()}_{endpoint}"
     return hashlib.md5(key.encode()).hexdigest()
 
 
 def _get_cache_path(symbol: str, endpoint: str) -> Path:
-    """Get cache file path."""
     _ensure_cache_dir()
     cache_key = _get_cache_key(symbol, endpoint)
     return CACHE_DIR / f"{cache_key}.json"
 
 
 def _is_cache_valid(cache_path: Path, endpoint: str) -> bool:
-    """Check if cached data is still valid based on TTL."""
     if not cache_path.exists():
         return False
-    
     ttl = CACHE_TTL.get(endpoint, 3600)
     mtime = cache_path.stat().st_mtime
     age = time.time() - mtime
-    
     return age < ttl
 
 
 def _read_cache(cache_path: Path) -> Optional[Dict[str, Any]]:
-    """Read cached data."""
     try:
         with open(cache_path, 'r') as f:
             return json.load(f)
@@ -90,249 +75,231 @@ def _read_cache(cache_path: Path) -> Optional[Dict[str, Any]]:
 
 
 def _write_cache(cache_path: Path, data: Dict[str, Any]) -> None:
-    """Write data to cache."""
     try:
         with open(cache_path, 'w') as f:
             json.dump(data, f)
     except IOError:
-        pass  # Fail silently on cache write errors
-
-
-def _wait_for_rate_limit() -> None:
-    """Wait if needed to respect Alpha Vantage rate limit."""
-    if not RATE_LIMIT_FILE.exists():
-        return
-    
-    try:
-        with open(RATE_LIMIT_FILE, 'r') as f:
-            last_call = float(f.read().strip())
-        
-        elapsed = time.time() - last_call
-        if elapsed < ALPHA_VANTAGE_MIN_INTERVAL:
-            sleep_time = ALPHA_VANTAGE_MIN_INTERVAL - elapsed
-            time.sleep(sleep_time)
-    except (ValueError, IOError):
         pass
 
 
-def _update_rate_limit() -> None:
-    """Update rate limit timestamp."""
-    try:
-        with open(RATE_LIMIT_FILE, 'w') as f:
-            f.write(str(time.time()))
-    except IOError:
-        pass
+def _clean(obj: Any) -> Any:
+    if isinstance(obj, dict):
+        return {k: _clean(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_clean(v) for v in obj]
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+    return obj
 
 
 def _fetch_yahoo_finance(symbol: str, endpoint: str) -> Optional[Dict[str, Any]]:
-    """
-    Fetch data from Yahoo Finance as fallback.
-    
-    Yahoo Finance has different endpoints, so we map Alpha Vantage endpoints
-    to Yahoo Finance equivalents where possible.
-    """
-    # Map Korean exchange suffixes to Yahoo Finance format (no suffix)
-    yahoo_symbol = symbol.replace('.KS', '').replace('.KQ', '')
-    
+    import yfinance as yf
+
+    try:
+        ticker = yf.Ticker(symbol)
+    except Exception:
+        return None
+
     try:
         if endpoint == "quote":
-            # Yahoo Finance quote summary
-            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{yahoo_symbol}?interval=1d&range=1d"
-            req = Request(url, headers={
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            info = ticker.fast_info
+            return _clean({
+                "symbol": symbol.upper(),
+                "name": info.get("longName") or symbol.upper(),
+                "price": info.get("lastPrice") or info.get("regularMarketPrice"),
+                "change": info.get("regularMarketChange"),
+                "changePercent": info.get("regularMarketChangePercent"),
+                "volume": info.get("regularMarketVolume"),
+                "marketCap": info.get("marketCap"),
+                "peRatio": info.get("trailingPE") or info.get("forwardPE"),
+                "dayHigh": info.get("dayHigh"),
+                "dayLow": info.get("dayLow"),
+                "previousClose": info.get("regularMarketPreviousClose"),
+                "open": info.get("regularMarketOpen"),
             })
-            
-            with urlopen(req, timeout=10) as response:
-                data = json.loads(response.read().decode('utf-8'))
-                
-                if 'chart' in data and 'result' in data['chart'] and data['chart']['result']:
-                    result = data['chart']['result'][0]
-                    meta = result['meta']
-                    quote = result['indicators']['quote'][0]
-                    
-                    # Get latest price
-                    close_prices = quote.get('close', [])
-                    if close_prices and close_prices[-1] is not None:
-                        current_price = close_prices[-1]
-                        prev_close = meta.get('previousClose', current_price)
-                        change = current_price - prev_close
-                        change_pct = (change / prev_close * 100) if prev_close else 0
-                        
-                        return {
-                            "Global Quote": {
-                                "01. symbol": symbol,
-                                "02. open": str(quote.get('open', [0])[-1] or 0),
-                                "03. high": str(quote.get('high', [0])[-1] or 0),
-                                "04. low": str(quote.get('low', [0])[-1] or 0),
-                                "05. price": str(current_price),
-                                "06. volume": str(quote.get('volume', [0])[-1] or 0),
-                                "07. latest trading day": datetime.now().strftime("%Y-%m-%d"),
-                                "08. previous close": str(prev_close),
-                                "09. change": str(change),
-                                "10. change percent": f"{change_pct:.2f}%"
-                            },
-                            "_source": "yahoo_finance",
-                            "_cached": False
-                        }
-        
-        elif endpoint == "daily":
-            # Yahoo Finance historical data
-            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{yahoo_symbol}?interval=1d&range=1y"
-            req = Request(url, headers={
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            })
-            
-            with urlopen(req, timeout=10) as response:
-                data = json.loads(response.read().decode('utf-8'))
-                
-                if 'chart' in data and 'result' in data['chart'] and data['chart']['result']:
-                    result = data['chart']['result'][0]
-                    timestamps = result['timestamp']
-                    quote = result['indicators']['quote'][0]
-                    
-                    time_series = {}
-                    for i, ts in enumerate(timestamps):
-                        if all(v is not None for v in [quote['open'][i], quote['high'][i], quote['low'][i], quote['close'][i], quote['volume'][i]]):
-                            date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
-                            time_series[date_str] = {
-                                "1. open": str(quote['open'][i]),
-                                "2. high": str(quote['high'][i]),
-                                "3. low": str(quote['low'][i]),
-                                "4. close": str(quote['close'][i]),
-                                "5. volume": str(quote['volume'][i])
-                            }
-                    
-                    return {
-                        "Time Series (Daily)": time_series,
-                        "_source": "yahoo_finance",
-                        "_cached": False
-                    }
-    
-    except (HTTPError, URLError, json.JSONDecodeError, KeyError, IndexError) as e:
-        pass  # Fall through to return None
-    
+
+        if endpoint == "daily":
+            hist = ticker.history(period="1y")
+            if hist.empty:
+                return None
+            time_series = {}
+            for date, row in hist.iterrows():
+                ds = date.strftime("%Y-%m-%d") if hasattr(date, 'strftime') else str(date)
+                time_series[ds] = {
+                    "open": row["Open"],
+                    "high": row["High"],
+                    "low": row["Low"],
+                    "close": row["Close"],
+                    "volume": int(row["Volume"]),
+                }
+            return _clean({"Time Series (Daily)": time_series})
+
+        if endpoint == "overview":
+            info = ticker.info
+            fields = {
+                "symbol": "symbol", "name": "shortName", "sector": "sector",
+                "industry": "industry", "marketCap": "marketCap",
+                "enterpriseValue": "enterpriseValue",
+                "trailingPE": "trailingPE", "forwardPE": "forwardPE",
+                "priceToBook": "priceToBook", "priceToSalesTrailing12Months": "priceToSalesTrailing12Months",
+                "enterpriseToEbitda": "enterpriseToEbitda", "enterpriseToRevenue": "enterpriseToRevenue",
+                "dividendYield": "dividendYield", "dividendRate": "dividendRate", "payoutRatio": "payoutRatio",
+                "beta": "beta", "peRatio": "trailingPE",
+                "eps": "trailingEps", "earningsPerShare": "trailingEps",
+                "revenue": "totalRevenue", "revenuePerShare": "revenuePerShare",
+                "grossProfit": "grossProfit", "ebitda": "ebitda",
+                "profitMargins": "profitMargins", "grossMargins": "grossMargins",
+                "operatingMargins": "operatingMargins",
+                "returnOnEquity": "returnOnEquity", "returnOnAssets": "returnOnAssets",
+                "debtToEquity": "debtToEquity", "currentRatio": "currentRatio", "quickRatio": "quickRatio",
+                "totalDebt": "totalDebt", "totalCash": "totalCash",
+                "freeCashflow": "freeCashflow", "operatingCashflow": "operatingCashflow",
+                "revenueGrowth": "revenueGrowth", "earningsGrowth": "earningsGrowth",
+                "bookValue": "bookValue",
+                "52WeekHigh": "fiftyTwoWeekHigh", "52WeekLow": "fiftyTwoWeekLow",
+                "50DayAverage": "fiftyDayAverage", "200DayAverage": "twoHundredDayAverage",
+                "targetMeanPrice": "targetMeanPrice", "recommendationMean": "recommendationMean",
+                "recommendationKey": "recommendationKey",
+                "numberOfAnalystOpinions": "numberOfAnalystOpinions",
+                "exDividendDate": "exDividendDate", "dividendDate": "dividendDate",
+                "sharesOutstanding": "sharesOutstanding", "floatShares": "floatShares",
+                "country": "country", "website": "website", "longBusinessSummary": "longBusinessSummary",
+            }
+            result = {}
+            for our_key, yf_key in fields.items():
+                result[our_key] = info.get(yf_key)
+            return _clean(result)
+
+if endpoint in ("income", "balance", "cashflow"):
+            stmt_map = {
+                "income": ticker.income_stmt,
+                "balance": ticker.balance_sheet,
+                "cashflow": ticker.cashflow,
+            }
+            stmt = stmt_map[endpoint]
+            if stmt is None or stmt.empty:
+                return None
+            result = {}
+            for date in stmt.columns:
+                ds = date.strftime("%Y-%m-%d") if hasattr(date, 'strftime') else str(date)
+                result[ds] = {}
+                for item in stmt.index:
+                    try:
+                        val = stmt.loc[item, date]
+                        if isinstance(val, float) and (math.isnan(val) or math.isinf(val)):
+                            continue
+                        result[ds][item] = val
+                    except Exception:
+                        pass
+
+            latest_date = stmt.columns[0]
+            latest_ds = latest_date.strftime("%Y-%m-%d") if hasattr(latest_date, 'strftime') else str(latest_date)
+            latest = result[latest_ds]
+
+            if endpoint == "income":
+                result["_latest"] = {
+                    "revenue": latest.get("Total Revenue"),
+                    "cost_of_goods_sold": latest.get("Cost Of Revenue"),
+                    "operating_income": latest.get("Operating Income") or latest.get("EBIT"),
+                    "net_income": latest.get("Net Income"),
+                    "interest_expense": latest.get("Interest Expense"),
+                    "ebitda": latest.get("EBITDA"),
+                }
+            elif endpoint == "balance":
+                result["_latest"] = {
+                    "total_assets": latest.get("Total Assets"),
+                    "total_equity": latest.get("Stockholders Equity") or latest.get("Total Equity Gross Minority Interest"),
+                    "current_assets": latest.get("Current Assets"),
+                    "current_liabilities": latest.get("Current Liabilities"),
+                    "total_debt": latest.get("Total Debt"),
+                    "cash_and_equivalents": latest.get("Cash And Cash Equivalents") or latest.get("Cash"),
+                    "inventory": latest.get("Inventory"),
+                    "accounts_receivable": latest.get("Accounts Receivable") or latest.get("Net Receivables"),
+                }
+            elif endpoint == "cashflow":
+                result["_latest"] = {
+                    "operating_cash_flow": latest.get("Operating Cash Flow") or latest.get("Cash From Operating Activities"),
+                    "total_debt_service": latest.get("Interest Paid") or latest.get("Interest Expense"),
+                }
+
+            return result
+
+if endpoint == "news":
+            news = ticker.news
+            if not news:
+                return None
+            items = []
+            for article in news[:20]:
+                ts = article.get("providerPublishTime")
+                published = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S") if ts else None
+                items.append({
+                    "title": article.get("title"),
+                    "source": article.get("publisher"),
+                    "published": published,
+                    "summary": article.get("summary"),
+                    "link": article.get("link"),
+                    "type": article.get("type"),
+                })
+            return _clean({"news": items})
+
+    except Exception:
+        pass
+
     return None
 
 
 def fetch_market_data(
     symbol: str,
     endpoint: str,
-    api_key: Optional[str] = None,
     use_cache: bool = True,
-    use_fallback: bool = True
 ) -> Tuple[Optional[Dict[str, Any]], str]:
     """
-    Fetch market data with caching and fallback.
-    
+    Fetch market data with caching.
+
     Returns:
         Tuple of (data_dict, source_string)
-        source_string: "cache", "alphavantage", "yahoo_finance", or "error"
+        source_string: "cache", "yahoo_finance", or "error"
     """
     cache_path = _get_cache_path(symbol, endpoint)
-    
-    # Check cache first
+
     if use_cache and _is_cache_valid(cache_path, endpoint):
         cached_data = _read_cache(cache_path)
         if cached_data:
             cached_data["_cached"] = True
             return cached_data, "cache"
-    
-    # Try Alpha Vantage
-    if api_key:
-        _wait_for_rate_limit()
-        
-        # Map endpoint to Alpha Vantage API
-        av_endpoints = {
-            "quote": "GLOBAL_QUOTE",
-            "overview": "OVERVIEW",
-            "income": "INCOME_STATEMENT",
-            "balance": "BALANCE_SHEET",
-            "cashflow": "CASH_FLOW",
-            "daily": "TIME_SERIES_DAILY",
-            "news": "NEWS_SENTIMENT"
-        }
-        
-        av_endpoint = av_endpoints.get(endpoint, endpoint.upper())
-        
-        # Build URL
-        base_url = "https://www.alphavantage.co/query"
-        if endpoint == "news":
-            url = f"{base_url}?function={av_endpoint}&tickers={symbol}&apikey={api_key}"
-        else:
-            url = f"{base_url}?function={av_endpoint}&symbol={symbol}&apikey={api_key}"
-        
-        try:
-            req = Request(url, headers={
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            })
-            
-            with urlopen(req, timeout=15) as response:
-                data = json.loads(response.read().decode('utf-8'))
-                
-                # Check for API error messages
-                if "Error Message" in data or "Information" in data:
-                    raise ValueError(f"API Error: {data.get('Error Message', data.get('Information', 'Unknown'))}")
-                
-                _update_rate_limit()
-                
-                # Cache the result
-                if use_cache:
-                    data["_source"] = "alphavantage"
-                    data["_cached"] = False
-                    _write_cache(cache_path, data)
-                
-                return data, "alphavantage"
-        
-        except Exception as e:
-            # Log for debugging but continue to fallback
-            print(f"Alpha Vantage failed: {e}", file=sys.stderr)
-            pass
-    
-    # Try Yahoo Finance fallback
-    if use_fallback:
-        yahoo_data = _fetch_yahoo_finance(symbol, endpoint)
-        if yahoo_data:
-            if use_cache:
-                _write_cache(cache_path, yahoo_data)
-            return yahoo_data, "yahoo_finance"
-    
+
+    yahoo_data = _fetch_yahoo_finance(symbol, endpoint)
+    if yahoo_data:
+        yahoo_data["_source"] = "yahoo_finance"
+        yahoo_data["_cached"] = False
+        if use_cache:
+            _write_cache(cache_path, yahoo_data)
+        return yahoo_data, "yahoo_finance"
+
     return None, "error"
 
 
 def clear_cache(symbol: Optional[str] = None, endpoint: Optional[str] = None) -> int:
-    """
-    Clear cached data.
-    
-    Args:
-        symbol: If provided, only clear cache for this symbol
-        endpoint: If provided, only clear cache for this endpoint
-    
-    Returns:
-        Number of cache files deleted
-    """
     if not CACHE_DIR.exists():
         return 0
-    
+
     deleted = 0
-    
     for cache_file in CACHE_DIR.glob("*.json"):
         if symbol and endpoint:
-            # Check if this file matches the symbol+endpoint
             expected_key = _get_cache_key(symbol, endpoint)
             if cache_file.stem == expected_key:
                 cache_file.unlink()
                 deleted += 1
         else:
-            # Clear all or filter by criteria
             cache_file.unlink()
             deleted += 1
-    
     return deleted
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Fetch market data with caching and rate limiting"
+        description="Fetch market data with caching"
     )
     parser.add_argument("--symbol", required=True, help="Stock symbol (e.g., AAPL)")
     parser.add_argument(
@@ -343,13 +310,11 @@ def main() -> None:
     )
     parser.add_argument("--format", choices=["text", "json"], default="json")
     parser.add_argument("--no-cache", action="store_true", help="Skip cache, force fresh fetch")
-    parser.add_argument("--no-fallback", action="store_true", help="Don't use Yahoo Finance fallback")
     parser.add_argument("--clear-cache", action="store_true", help="Clear cache for this symbol/endpoint")
     parser.add_argument("--stdin", action="store_true", help="Read parameters from stdin as JSON")
-    
+
     args = parser.parse_args()
-    
-    # Handle stdin input
+
     if args.stdin:
         try:
             stdin_data = json.load(sys.stdin)
@@ -358,42 +323,26 @@ def main() -> None:
         except json.JSONDecodeError as e:
             print(f"Error: Invalid JSON from stdin: {e}", file=sys.stderr)
             sys.exit(1)
-        
+
         if not args.symbol or not args.endpoint:
             print("Error: stdin JSON must contain 'symbol' and 'endpoint'", file=sys.stderr)
             sys.exit(1)
-        
-        if not args.symbol or not args.endpoint:
-            print("Error: stdin JSON must contain 'symbol' and 'endpoint'", file=sys.stderr)
-            sys.exit(1)
-        
-        if not args.symbol or not args.endpoint:
-            print("Error: stdin JSON must contain 'symbol' and 'endpoint'", file=sys.stderr)
-            sys.exit(1)
-    
-    # Clear cache if requested
+
     if args.clear_cache:
         deleted = clear_cache(args.symbol, args.endpoint)
         print(f"Cleared {deleted} cache file(s)")
         sys.exit(0)
-    
-    # Get API key from environment
-    api_key = os.environ.get("ALPHAVANTAGE_API_KEY")
-    
-    # Fetch data
+
     data, source = fetch_market_data(
         symbol=args.symbol,
         endpoint=args.endpoint,
-        api_key=api_key,
         use_cache=not args.no_cache,
-        use_fallback=not args.no_fallback
     )
-    
+
     if data is None:
         print(f"Error: Failed to fetch data for {args.symbol} ({args.endpoint})", file=sys.stderr)
         sys.exit(1)
-    
-    # Output
+
     if args.format == "json":
         output = {
             "data": data,

@@ -5,7 +5,6 @@ temperature: 0.1
 permission:
   read: allow
   bash: allow
-  alphavantage*: allow
   webfetch: allow
   websearch: allow
 ---
@@ -68,8 +67,8 @@ echo '{"symbol": "AAPL", "endpoint": "cashflow"}' | python skills/financial-anal
 
 **Cache benefits:**
 - Multiple calls to same endpoint within TTL return cached data instantly
-- No rate limit concerns for repeated analysis
-- Automatic fallback to Yahoo Finance if Alpha Vantage fails
+- No rate limit concerns (yfinance engine — unlimited calls)
+- No API key required
 
 **Analysis:**
 1. Run DCF valuation with scenarios using `dcf_valuation.py --stdin`:

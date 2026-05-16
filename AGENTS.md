@@ -12,8 +12,8 @@ This repo is the **source** for agents/skills. `install.sh` copies them to the u
 
 | Agent | Role | Mode |
 |-------|------|------|
-| `finance-advisor.md` | Orchestrator. Routes queries to subagents. Handles simple quotes **directly** via Alpha Vantage API without subagent hops. | — |
-| `market-researcher.md` | **Raw data fetch only**. Returns API responses with zero interpretation/summarization. | — |
+| `finance-advisor.md` | Orchestrator. Routes queries to subagents. Simple quotes delegated to `@market-researcher`. | — |
+| `market-researcher.md` | **Raw data fetch only** via yfinance engine. Returns data with zero interpretation/summarization. | — |
 | `portfolio-manager.md` | Portfolio allocation, returns, concentration, rebalancing. Basic (summary) vs Deep (scenarios + Korean tax). | basic/deep |
 | `stock-analyzer.md` | Stock overview. Basic (price + 4 metrics) vs Deep (DCF + ratio calc + optional PDF). | basic/deep |
 
@@ -21,7 +21,7 @@ This repo is the **source** for agents/skills. `install.sh` copies them to the u
 
 | Script | Used When |
 |--------|-----------|
-| `market_data_fetcher.py` | **All market data fetching**. Caching + rate limiting + Yahoo Finance fallback. |
+| `market_data_fetcher.py` | **All market data fetching** via yfinance. Caching + no rate limits. |
 | `dcf_valuation.py` | Deep stock analysis. DCF enterprise valuation + WACC + 2-way sensitivity (5×5 table). |
 | `ratio_calculator.py` | Deep stock analysis. 20 financial ratios + benchmark-based interpretation. |
 
@@ -47,14 +47,13 @@ permission:
   write: deny      # File creation → @fixer
   glob: allow      # File discovery
   grep: allow      # Pattern search
-  alphavantage*: allow  # Simple API calls (fast path)
-  task: allow      # Subagent delegation
+  task: allow      # Subagent delegation (no MCP — data via @market-researcher)
 ```
 
 **Delegation rules:**
 | Task | Handler | Reason |
 |------|---------|--------|
-| Simple price query | Direct API | < 5 sec, no overhead |
+| Simple price query | `@market-researcher` | Fast data fetch |
 | Portfolio analysis | `@portfolio-manager` | Complex calculation |
 | Stock deep dive | `@stock-analyzer` | DCF + ratios |
 | File edits | `@fixer` | Implementation |
@@ -64,6 +63,8 @@ permission:
 
 All market data goes through `market_data_fetcher.py`:
 
+**Data engine:** yfinance (Python library) — no API key, no rate limits.
+
 **Cache TTL by endpoint:**
 | Endpoint | TTL | Use Case |
 |----------|-----|----------|
@@ -72,10 +73,6 @@ All market data goes through `market_data_fetcher.py`:
 | `overview` | 1 day | Company fundamentals |
 | `income`/`balance`/`cashflow` | 1 day | Financial statements |
 | `news` | 30 min | News sentiment |
-
-**Rate limiting:** Automatic 12-second delay between Alpha Vantage calls (respects free tier: 5 calls/minute).
-
-**Fallback:** Yahoo Finance used automatically if Alpha Vantage fails or rate limited.
 
 **Cache location:** `~/.cache/financial-advisor/`
 
@@ -94,14 +91,11 @@ Adjust for non-Korean users when requested.
 # Install to global OpenCode config (~/.config/opencode/)
 bash install.sh -g
 
-# Install Python dep (only needed for Excel reading; skip if CSV-only)
+# Install Python deps (yfinance + openpyxl)
 pip install -r requirements.txt
-
-# Requires ALPHAVANTAGE_API_KEY env var
-export ALPHAVANTAGE_API_KEY=your_key
 ```
 
-`opencode.json` is gitignored. Use `opencode.json.example` as the MCP config template.
+No API key required. `opencode.json` is gitignored. Minimal stub at `opencode.json.example` (MCP not required).
 
 ## Script Conventions
 
