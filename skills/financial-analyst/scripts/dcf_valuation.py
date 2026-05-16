@@ -19,6 +19,23 @@ import math
 import sys
 from typing import Any, Dict, List, Optional, Tuple
 
+# Import constants from config module
+try:
+    from config import (
+        DEFAULT_WACC,
+        DEFAULT_TERMINAL_GROWTH_RATE,
+        DEFAULT_PROJECTION_YEARS,
+        DEFAULT_EXIT_EV_EBITDA_MULTIPLE,
+        DEFAULT_EBITDA_MARGIN,
+    )
+except ImportError:
+    # Fallback if config not available (standalone execution)
+    DEFAULT_WACC = 0.10
+    DEFAULT_TERMINAL_GROWTH_RATE = 0.025
+    DEFAULT_PROJECTION_YEARS = 5
+    DEFAULT_EXIT_EV_EBITDA_MULTIPLE = 12.0
+    DEFAULT_EBITDA_MARGIN = 0.20
+
 
 def safe_divide(numerator: float, denominator: float, default: float = 0.0) -> float:
     if denominator == 0 or denominator is None:
@@ -236,7 +253,7 @@ class DCFModel:
 
     def set_assumptions(self, assumptions: Dict[str, Any]) -> None:
         self.assumptions = assumptions
-        self.projection_years = assumptions.get("projection_years", 5)
+        self.projection_years = assumptions.get("projection_years", DEFAULT_PROJECTION_YEARS)
 
     def calculate_wacc(self) -> float:
         wacc_inputs = self.assumptions.get("wacc_inputs", {})
@@ -255,6 +272,10 @@ class DCFModel:
         self.wacc = (equity_weight * cost_of_equity) + (
             debt_weight * after_tax_cost_of_debt
         )
+
+        # Sanity check: WACC should typically be between 2% and 30%
+        if self.wacc < 0.02 or self.wacc > 0.30:
+            print(f"Warning: Calculated WACC ({self.wacc:.2%}) is outside typical range (2%-30%)", file=sys.stderr)
 
         return self.wacc
 
@@ -300,8 +321,12 @@ class DCFModel:
             raise ValueError("Must project cash flows before terminal value")
 
         terminal_fcf = self.projected_fcf[-1]
-        terminal_growth = self.assumptions.get("terminal_growth_rate", 0.025)
-        exit_multiple = self.assumptions.get("exit_ev_ebitda_multiple", 12.0)
+        terminal_growth = self.assumptions.get("terminal_growth_rate", DEFAULT_TERMINAL_GROWTH_RATE)
+        exit_multiple = self.assumptions.get("exit_ev_ebitda_multiple", DEFAULT_EXIT_EV_EBITDA_MULTIPLE)
+
+        # Validate terminal growth is reasonable (typically 0% to 10%)
+        if terminal_growth < 0 or terminal_growth > 0.10:
+            print(f"Warning: Terminal growth rate ({terminal_growth:.2%}) is outside typical range (0%-10%)", file=sys.stderr)
 
         if self.wacc > terminal_growth:
             self.terminal_value_perpetuity = (
@@ -312,7 +337,7 @@ class DCFModel:
             print("Warning: WACC ({:.2%}) <= terminal growth rate ({:.2%}). Perpetuity method disabled.".format(self.wacc, terminal_growth), file=sys.stderr)
 
         terminal_revenue = self.projected_revenue[-1]
-        ebitda_margin = self.assumptions.get("terminal_ebitda_margin", 0.20)
+        ebitda_margin = self.assumptions.get("terminal_ebitda_margin", DEFAULT_EBITDA_MARGIN)
         terminal_ebitda = terminal_revenue * ebitda_margin
         self.terminal_value_exit_multiple = terminal_ebitda * exit_multiple
 

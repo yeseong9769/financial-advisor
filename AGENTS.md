@@ -17,10 +17,11 @@ This repo is the **source** for agents/skills. `install.sh` copies them to the u
 | `portfolio-manager.md` | Portfolio allocation, returns, concentration, rebalancing. Basic (summary) vs Deep (scenarios + Korean tax). | basic/deep |
 | `stock-analyzer.md` | Stock overview. Basic (price + 4 metrics) vs Deep (DCF + ratio calc + optional PDF). | basic/deep |
 
-**2 Python scripts** (`skills/financial-analyst/scripts/`), stdin/stdout only:
+**3 Python scripts** (`skills/financial-analyst/scripts/`), stdin/stdout only:
 
 | Script | Used When |
 |--------|-----------|
+| `market_data_fetcher.py` | **All market data fetching**. Caching + rate limiting + Yahoo Finance fallback. |
 | `dcf_valuation.py` | Deep stock analysis. DCF enterprise valuation + WACC + 2-way sensitivity (5×5 table). |
 | `ratio_calculator.py` | Deep stock analysis. 20 financial ratios + benchmark-based interpretation. |
 
@@ -32,6 +33,51 @@ This repo is the **source** for agents/skills. `install.sh` copies them to the u
 - **Raw data fetcher**: `market-researcher` does not analyze. It returns trimmed API responses. The caller (`finance-advisor` or `stock-analyzer`) decides what to do with the data.
 - **No script for simple math**: Allocation %, HHI, rebalancing trade amounts — agents calculate directly. Scripts are only for complex multi-step calculations (DCF 5-year projection, 20-ratio analysis).
 - **Economic context OFF by default**: `finance-advisor` skips `@market-researcher` for news sentiment unless Deep mode specifically benefits from it (e.g. DCF WACC adjustment, rebalancing in volatile markets).
+
+## Orchestrator Pattern
+
+`finance-advisor` follows the official OpenCode orchestrator pattern:
+
+**Permissions (enforced delegation):**
+```yaml
+permission:
+  read: allow      # Routing decisions
+  edit: deny       # Implementation → @fixer
+  bash: deny       # Commands → @fixer
+  write: deny      # File creation → @fixer
+  glob: allow      # File discovery
+  grep: allow      # Pattern search
+  alphavantage*: allow  # Simple API calls (fast path)
+  task: allow      # Subagent delegation
+```
+
+**Delegation rules:**
+| Task | Handler | Reason |
+|------|---------|--------|
+| Simple price query | Direct API | < 5 sec, no overhead |
+| Portfolio analysis | `@portfolio-manager` | Complex calculation |
+| Stock deep dive | `@stock-analyzer` | DCF + ratios |
+| File edits | `@fixer` | Implementation |
+| Code/scripts | `@fixer` | Implementation |
+
+## Data Fetching & Caching
+
+All market data goes through `market_data_fetcher.py`:
+
+**Cache TTL by endpoint:**
+| Endpoint | TTL | Use Case |
+|----------|-----|----------|
+| `quote` | 5 min | Current price, change, volume |
+| `daily` | 1 hour | Daily OHLCV time series |
+| `overview` | 1 day | Company fundamentals |
+| `income`/`balance`/`cashflow` | 1 day | Financial statements |
+| `news` | 30 min | News sentiment |
+
+**Rate limiting:** Automatic 12-second delay between Alpha Vantage calls (respects free tier: 5 calls/minute).
+
+**Fallback:** Yahoo Finance used automatically if Alpha Vantage fails or rate limited.
+
+**Cache location:** `~/.cache/financial-advisor/`
 
 ## Korean Tax Default
 
@@ -88,3 +134,57 @@ Source: [forrestchang/andrej-karpathy-skills](https://github.com/forrestchang/an
 ### 4. Goal-Driven Execution
 - **Define success criteria**: Transform "Analyze portfolio" → "Calculate allocation, returns, and concentration, then present findings".
 - **Verify each step**: For multi-step tasks, verify outputs before proceeding.
+
+## Validation Examples
+
+### DCF Edge Cases
+
+**Case 1: WACC <= Terminal Growth Rate**
+```
+Input: WACC 0.03, terminal_growth 0.04
+Expected: Perpetuity method disabled, Exit multiple method only
+Output contains: "Warning: WACC (3.00%) <= terminal growth rate (4.00%). Perpetuity method disabled."
+```
+
+**Case 2: Zero Historical Revenue**
+```
+Input: historical.revenue = []
+Expected: ValueError("Historical revenue data is required")
+```
+
+**Case 3: Negative FCF in All Years**
+```
+Input: fcf_margins = [-0.05, -0.03, -0.01, 0.01, 0.03]
+Expected: Valid calculation, negative enterprise value possible
+Note: Document clearly if all scenarios negative
+```
+
+### Ratio Calculator Edge Cases
+
+**Case 1: Zero Denominator**
+```
+Input: total_equity = 0
+Expected: ROE = 0.0 (safe_divide returns default)
+Interpretation: "Insufficient data to calculate"
+```
+
+**Case 2: Missing Optional Fields**
+```
+Input: income_statement without "ebitda" field
+Expected: EV/EBITDA = 0.0, interpretation "Insufficient data"
+```
+
+### Portfolio Calculation Checks
+
+**Sanity Check 1: Allocation Sum**
+```
+Verify: sum(allocation_percentages) ≈ 100% (±0.1% tolerance)
+If not: Check for missing assets or data parsing error
+```
+
+**Sanity Check 2: HHI Range**
+```
+HHI should be: 100 (equal weight) to 10000 (single asset)
+If HHI > 5000: Flag as "Extreme concentration"
+If HHI < 500: Flag as "Over-diversified"
+```

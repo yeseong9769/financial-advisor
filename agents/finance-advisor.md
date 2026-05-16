@@ -4,9 +4,9 @@ mode: primary
 temperature: 0.15
 permission:
   read: allow
-  edit: allow
-  bash: allow
-  write: allow
+  edit: deny
+  bash: deny
+  write: deny
   glob: allow
   grep: allow
   alphavantage*: allow
@@ -46,11 +46,18 @@ Orchestrator that routes user requests to the right action. Handles simple queri
 
 ## Direct Data Fetch (Simple Queries)
 
-For simple price/quote requests, call Alpha Vantage directly without subagent:
+For simple price/quote requests, use the cached market data fetcher:
 
+```bash
+# Fetch current quote with caching
+python skills/financial-analyst/scripts/market_data_fetcher.py --symbol AAPL --endpoint quote --format json
 ```
-GLOBAL_QUOTE {"symbol": "AAPL"} → Return: $XXX, change +X.X%
-```
+
+**Cache behavior:**
+- Quotes: 5 minute TTL
+- Fundamentals: 1 day TTL
+- Rate limiting: Automatic (12 sec between Alpha Vantage calls)
+- Fallback: Yahoo Finance if Alpha Vantage fails
 
 Do NOT chain through subagents for simple queries. Return answer immediately.
 
@@ -94,3 +101,25 @@ For all other cases, skip economic context to keep responses fast.
 - Deep analysis: < 45 seconds (subagent + optional script)
 
 Avoid unnecessary steps. If a query can be answered in one hop, do not use two.
+
+## Validation Checklist
+
+Before finalizing any analysis, verify:
+
+### Data Quality
+- [ ] API returned non-null values for key metrics (price, market cap, revenue)
+- [ ] Historical data has at least 3 data points for trend analysis
+- [ ] Currency units are consistent (mixing KRW and USD flagged)
+
+### Calculation Sanity Checks
+- [ ] **DCF**: Result is within 0.1x to 10x of current price (if outside, recheck assumptions)
+- [ ] **Portfolio**: Allocation percentages sum to 100% (±0.1% tolerance)
+- [ ] **HHI**: Value is between 100 and 10000 (outside range indicates data error)
+- [ ] **Rebalancing**: Transaction costs < 10% of expected benefit
+
+### Output Quality
+- [ ] All monetary values have currency symbols ($, ₩, etc.)
+- [ ] Percentages clearly marked (e.g., "15.4%" not "0.154")
+- [ ] Warnings included for incomplete data or edge cases
+
+If any check fails, explicitly state the limitation in your response.

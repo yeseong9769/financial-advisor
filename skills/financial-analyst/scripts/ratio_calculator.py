@@ -16,16 +16,12 @@ import json
 import sys
 from typing import Any, Dict, List, Optional, Tuple
 
-
-def safe_divide(numerator: float, denominator: float, default: float = 0.0) -> float:
-    if denominator == 0 or denominator is None:
-        return default
-    return numerator / denominator
-
-
-class FinancialRatioCalculator:
-
-    BENCHMARKS: Dict[str, Tuple[float, float, float]] = {
+# Import constants from config module
+try:
+    from config import BENCHMARKS
+except ImportError:
+    # Fallback if config not available (standalone execution)
+    BENCHMARKS = {
         "roe": (0.08, 0.15, 0.25),
         "roa": (0.03, 0.06, 0.12),
         "gross_margin": (0.25, 0.40, 0.60),
@@ -47,6 +43,42 @@ class FinancialRatioCalculator:
         "ev_ebitda": (6.0, 12.0, 20.0),
         "peg_ratio": (0.5, 1.0, 2.0),
     }
+
+
+def safe_divide(numerator: float, denominator: float, default: float = 0.0) -> float:
+    if denominator == 0 or denominator is None:
+        return default
+    return numerator / denominator
+
+
+def validate_input(data: Dict[str, Any]) -> List[str]:
+    """Validate input data and return list of warnings."""
+    warnings = []
+    
+    income = data.get("income_statement", {})
+    balance = data.get("balance_sheet", {})
+    
+    # Check for required fields
+    if not income.get("revenue"):
+        warnings.append("Revenue data missing - profitability ratios will be incomplete")
+    
+    if not balance.get("total_equity"):
+        warnings.append("Total equity missing - ROE cannot be calculated")
+    
+    if not balance.get("total_assets"):
+        warnings.append("Total assets missing - ROA cannot be calculated")
+    
+    # Check for negative values that might indicate data issues
+    if income.get("revenue", 0) < 0:
+        warnings.append("Negative revenue detected - check data source")
+    
+    if balance.get("total_equity", 0) < 0:
+        warnings.append("Negative equity detected - company may be insolvent")
+    
+    return warnings
+
+
+class FinancialRatioCalculator:
 
     def __init__(self, data: Dict[str, Any]) -> None:
         self.income = data.get("income_statement", {})
@@ -276,7 +308,7 @@ class FinancialRatioCalculator:
         if value == 0.0:
             return "Insufficient data to calculate"
 
-        benchmarks = self.BENCHMARKS.get(ratio_key)
+        benchmarks = BENCHMARKS.get(ratio_key)
         if not benchmarks:
             return "No benchmark available"
 
@@ -385,6 +417,14 @@ def main() -> None:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
+    # Validate input and show warnings
+    warnings = validate_input(data)
+    if warnings and args.format == "text":
+        print("\n--- WARNINGS ---", file=sys.stderr)
+        for warning in warnings:
+            print(f"  ! {warning}", file=sys.stderr)
+        print("", file=sys.stderr)
+
     calculator = FinancialRatioCalculator(data)
 
     if args.category:
@@ -400,7 +440,10 @@ def main() -> None:
         calculator.calculate_all()
 
     if args.format == "json":
-        print(json.dumps(calculator.to_json(args.category), indent=2))
+        output = calculator.to_json(args.category)
+        if warnings:
+            output["warnings"] = warnings
+        print(json.dumps(output, indent=2))
     else:
         print(calculator.format_text(args.category))
 

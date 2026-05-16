@@ -66,7 +66,13 @@ Full rebalancing analysis with tax considerations. Use when user requests detail
    - Dividend withholding: 15.4%
    - Check ISA account eligibility
    - Loss offsetting: net losses can offset gains in same year
-6. Present trade recommendations with pros/cons
+6. Apply Tax-Aware Rebalancing Rules (execution priority):
+   - **Priority 1**: Rebalance in tax-advantaged accounts first (ISA, pension) — no tax consequences
+   - **Priority 2**: In taxable accounts, avoid selling positions with unrealized short-term gains (< 1 year)
+   - **Priority 3**: Harvest tax losses where possible while rebalancing (offset gains)
+   - **Priority 4**: Consider directing new cash contributions to underweight assets instead of selling winners
+   - **Wash sale rule**: Avoid repurchasing same/similar security within 30 days of loss harvesting
+7. Present trade recommendations with pros/cons
 
 **Output format (Deep):**
 ```

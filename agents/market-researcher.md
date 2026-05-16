@@ -15,22 +15,34 @@ Fetches raw market data from Alpha Vantage MCP. **No interpretation, no analysis
 
 ## Available API Calls
 
-Use these tools to fetch data:
+Use the cached market data fetcher for all data retrieval:
 
-| Tool | Purpose | Response |
-|------|---------|----------|
-| `TIME_SERIES_DAILY {"symbol": "AAPL", "outputsize": "compact"}` | Daily OHLCV | OHLCV time series |
-| `GLOBAL_QUOTE {"symbol": "AAPL"}` | Current price | Price, change, volume |
-| `COMPANY_OVERVIEW {"symbol": "AAPL"}` | Company fundamentals | Market cap, PE, PB, dividend, etc. |
-| `INCOME_STATEMENT {"symbol": "AAPL"}` | Income statement | Revenue, earnings, margins |
-| `BALANCE_SHEET {"symbol": "AAPL"}` | Balance sheet | Assets, liabilities, equity |
-| `CASH_FLOW {"symbol": "AAPL"}` | Cash flow statement | Operating, investing, financing CF |
-| `RSI {"symbol": "AAPL", "interval": "daily"}` | RSI technical indicator | RSI values |
-| `MACD {"symbol": "AAPL", "interval": "daily"}` | MACD technical indicator | MACD values |
-| `BBANDS {"symbol": "AAPL", "interval": "daily"}` | Bollinger Bands | BB values |
-| `NEWS_SENTIMENT {"tickers": "SPY,QQQ", "topics": "economy,inflation"}` | News sentiment | News feed with sentiment |
-| `DIGITAL_CURRENCY_DAILY {"symbol": "BTC", "market": "CNY"}` | Crypto daily | Crypto OHLCV |
-| `FX_DAILY {"from_symbol": "EUR", "to_symbol": "USD"}` | Forex daily | Forex OHLCV |
+```bash
+# Fetch data with automatic caching and fallback
+echo '{"symbol": "AAPL", "endpoint": "quote"}' | python skills/financial-analyst/scripts/market_data_fetcher.py --stdin
+echo '{"symbol": "AAPL", "endpoint": "overview"}' | python skills/financial-analyst/scripts/market_data_fetcher.py --stdin
+echo '{"symbol": "AAPL", "endpoint": "income"}' | python skills/financial-analyst/scripts/market_data_fetcher.py --stdin
+echo '{"symbol": "AAPL", "endpoint": "balance"}' | python skills/financial-analyst/scripts/market_data_fetcher.py --stdin
+echo '{"symbol": "AAPL", "endpoint": "cashflow"}' | python skills/financial-analyst/scripts/market_data_fetcher.py --stdin
+echo '{"symbol": "AAPL", "endpoint": "daily"}' | python skills/financial-analyst/scripts/market_data_fetcher.py --stdin
+echo '{"symbol": "AAPL", "endpoint": "news"}' | python skills/financial-analyst/scripts/market_data_fetcher.py --stdin
+```
+
+**Cache TTL:**
+| Endpoint | TTL | Description |
+|----------|-----|-------------|
+| `quote` | 5 min | Current price, change, volume |
+| `daily` | 1 hour | Daily OHLCV time series |
+| `overview` | 1 day | Company fundamentals (PE, PB, market cap, etc.) |
+| `income` | 1 day | Income statement |
+| `balance` | 1 day | Balance sheet |
+| `cashflow` | 1 day | Cash flow statement |
+| `news` | 30 min | News sentiment |
+
+**Features:**
+- Automatic rate limiting (12 sec between Alpha Vantage calls)
+- Yahoo Finance fallback if Alpha Vantage fails
+- Cache stored in `~/.cache/financial-advisor/`
 
 ## Instructions
 

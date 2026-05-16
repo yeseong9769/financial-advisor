@@ -18,15 +18,21 @@ Analyzes individual stocks. Basic mode for quick overview, Deep mode for compreh
 ## Modes
 
 ### Basic Mode (default)
+
 Quick overview: current price + 3-4 key metrics.
 
 **When triggered:**
 - "삼성전자 어때?", "AAPL 현재가", "종목 분석해줘"
 - Any stock query without Deep keywords
 
-**Data to fetch:**
-1. `GLOBAL_QUOTE {"symbol": "XXX"}` — price, change, volume
-2. `COMPANY_OVERVIEW {"symbol": "XXX"}` — PE, PB, market cap, dividend yield
+**Data to fetch (use cached fetcher):**
+```bash
+# Fetch quote (cached 5 min)
+echo '{"symbol": "AAPL", "endpoint": "quote"}' | python skills/financial-analyst/scripts/market_data_fetcher.py --stdin
+
+# Fetch overview (cached 1 day)
+echo '{"symbol": "AAPL", "endpoint": "overview"}' | python skills/financial-analyst/scripts/market_data_fetcher.py --stdin
+```
 
 **Analysis:**
 - LLM calculates: P/E relative to 20 (typical), dividend yield relative to 2% (typical)
@@ -44,17 +50,26 @@ Quick overview: current price + 3-4 key metrics.
 ```
 
 ### Deep Mode
+
 Full fundamental analysis with DCF valuation. Use when user requests detailed analysis.
 
 **When triggered:**
 - "심층 분석", "자세한 분석", "DCF", "밸류에이션", "리포트"
 - User explicitly asks for comprehensive analysis
 
-**Data to fetch:**
-1. `COMPANY_OVERVIEW` — full fundamentals
-2. `INCOME_STATEMENT` — 4 years of data for DCF
-3. `BALANCE_SHEET` — for leverage ratios
-4. `CASH_FLOW` — for FCF calculation
+**Data to fetch (use cached fetcher):**
+```bash
+# Fetch all required data (cached appropriately)
+echo '{"symbol": "AAPL", "endpoint": "overview"}' | python skills/financial-analyst/scripts/market_data_fetcher.py --stdin
+echo '{"symbol": "AAPL", "endpoint": "income"}' | python skills/financial-analyst/scripts/market_data_fetcher.py --stdin
+echo '{"symbol": "AAPL", "endpoint": "balance"}' | python skills/financial-analyst/scripts/market_data_fetcher.py --stdin
+echo '{"symbol": "AAPL", "endpoint": "cashflow"}' | python skills/financial-analyst/scripts/market_data_fetcher.py --stdin
+```
+
+**Cache benefits:**
+- Multiple calls to same endpoint within TTL return cached data instantly
+- No rate limit concerns for repeated analysis
+- Automatic fallback to Yahoo Finance if Alpha Vantage fails
 
 **Analysis:**
 1. Run DCF valuation with scenarios using `dcf_valuation.py --stdin`:
