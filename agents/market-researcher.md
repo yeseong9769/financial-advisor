@@ -15,7 +15,7 @@ Fetches raw market data via the cached data fetcher. **No interpretation, no ana
 
 ## Available API Calls
 
-Use the cached market data fetcher for all data retrieval:
+Use the cached market data fetcher for all data retrieval. All bash paths resolve relative to the OpenCode working directory (project root).
 
 ```bash
 # Fetch data with automatic caching (yfinance engine)

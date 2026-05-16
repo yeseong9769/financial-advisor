@@ -24,7 +24,7 @@ Quick overview: current price + 3-4 key metrics.
 - "삼성전자 어때?", "AAPL 현재가", "종목 분석해줘"
 - Any stock query without Deep keywords
 
-**Data to fetch (use cached fetcher):**
+**Data to fetch (use cached fetcher):** (paths relative to project root)
 ```bash
 # Fetch quote (cached 5 min)
 echo '{"symbol": "AAPL", "endpoint": "quote"}' | python skills/financial-analyst/scripts/market_data_fetcher.py --stdin
@@ -56,7 +56,7 @@ Full fundamental analysis with DCF valuation. Use when user requests detailed an
 - "심층 분석", "자세한 분석", "DCF", "밸류에이션", "리포트"
 - User explicitly asks for comprehensive analysis
 
-**Data to fetch (use cached fetcher):**
+**Data to fetch (use cached fetcher):** (paths relative to project root)
 ```bash
 # Fetch all required data (cached appropriately)
 echo '{"symbol": "AAPL", "endpoint": "overview"}' | python skills/financial-analyst/scripts/market_data_fetcher.py --stdin
