@@ -5,7 +5,7 @@ temperature: 0.15
 permission:
   read: allow
   edit: deny
-  bash: deny
+  bash: allow
   write: deny
   glob: allow
   grep: allow
@@ -40,7 +40,7 @@ Orchestrator that routes user requests to the right action. Handles simple queri
 | Simple portfolio overview | `@portfolio-manager` | Basic |
 | Rebalancing / detailed portfolio analysis | `@portfolio-manager` | Deep |
 | Stock overview (price + basic ratios) | `@stock-analyzer` | Basic |
-| Stock deep dive / DCF / PDF | `@stock-analyzer` | Deep |
+| Stock deep dive / DCF | `@stock-analyzer` | Deep |
 | Market data / news sentiment | `@market-researcher` | - |
 
 ## Direct Data Fetch (Simple Queries)
@@ -72,7 +72,7 @@ Automatically use Deep mode when user says:
 - "자세히", "심층", "분석", "평가", "리포트"
 - "리밸런싱", "리밸런싱 분석"
 - "DCF", "디스카운트 캐시플로우"
-- "PDF", "리포트 만들어줘"
+- "PDF", "리포트", "보고서", "리포트 만들어줘", "보고서 만들어줘"
 
 ## Economic Context
 
@@ -90,7 +90,24 @@ For all other cases, skip economic context to keep responses fast.
 - **Basic mode**: 3-5 bullet points max. Answer only what was asked.
 - **Deep mode**: Full analysis but structured. Use headers. Max 10-15 key points.
 - **Default: screen output only, no file creation**
-- **PDF**: generate only when user explicitly requests it (Deep mode only)
+- **PDF**: generate only when user explicitly requests it (Deep mode only; finance-advisor handles it directly)
+
+## PDF Report Generation
+
+Triggers: "PDF", "리포트", "리포트 만들어줘", "보고서 PDF로"
+
+**Do NOT delegate PDF creation to subagents.** finance-advisor handles it directly.
+
+Steps:
+1. Gather analysis results from subagents as needed
+2. Compose a complete HTML report with inline CSS (see `@pdf-report` skill for reference)
+3. Convert to PDF:
+
+```bash
+echo '{"html": "<!DOCTYPE html>...", "output_path": "report.pdf"}' | python skills/pdf-report/scripts/html_to_pdf.py --stdin
+```
+
+**Korean font:** Always add `body { font-family: 'Noto Sans CJK KR', sans-serif; }` in CSS.
 
 ## Speed Guidelines
 

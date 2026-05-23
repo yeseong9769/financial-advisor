@@ -55,13 +55,17 @@ install_to() {
 
   mkdir -p "$target/agents"
   mkdir -p "$target/skills/financial-analyst/scripts"
+  mkdir -p "$target/skills/pdf-report/scripts"
 
   cp "$REPO_DIR/agents/"*.md "$target/agents/"
   cp "$REPO_DIR/skills/financial-analyst/SKILL.md" "$target/skills/financial-analyst/"
   cp "$REPO_DIR/skills/financial-analyst/scripts/"*.py "$target/skills/financial-analyst/scripts/"
+  cp "$REPO_DIR/skills/pdf-report/SKILL.md" "$target/skills/pdf-report/"
+  cp "$REPO_DIR/skills/pdf-report/scripts/"*.py "$target/skills/pdf-report/scripts/"
 
   echo "  - agents ($(ls "$target/agents/"*.md 2>/dev/null | wc -l) files)"
   echo "  - skills/financial-analyst ($(ls "$target/skills/financial-analyst/scripts/"*.py 2>/dev/null | wc -l) scripts)"
+  echo "  - skills/pdf-report ($(ls "$target/skills/pdf-report/scripts/"*.py 2>/dev/null | wc -l) scripts)"
 }
 
 install_python() {
@@ -104,6 +108,20 @@ verify_installation() {
       errors=$((errors + 1))
     fi
   done
+
+  if [ -f "$target/skills/pdf-report/SKILL.md" ]; then
+    echo "  ✅ skills/pdf-report/SKILL.md"
+  else
+    echo "  ❌ skills/pdf-report/SKILL.md — MISSING"
+    errors=$((errors + 1))
+  fi
+
+  if [ -f "$target/skills/pdf-report/scripts/html_to_pdf.py" ]; then
+    echo "  ✅ skills/pdf-report/scripts/html_to_pdf.py"
+  else
+    echo "  ❌ skills/pdf-report/scripts/html_to_pdf.py — MISSING"
+    errors=$((errors + 1))
+  fi
 
   echo ""
   if [ "$errors" -eq 0 ]; then

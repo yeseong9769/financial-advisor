@@ -15,15 +15,21 @@ This repo is the **source** for agents/skills. `install.sh` copies them to the u
 | `finance-advisor.md` | Orchestrator. Routes queries to subagents. Simple quotes delegated to `@market-researcher`. | — |
 | `market-researcher.md` | **Raw data fetch only** via yfinance engine. Returns data with zero interpretation/summarization. | — |
 | `portfolio-manager.md` | Portfolio allocation, returns, concentration, rebalancing. Basic (summary) vs Deep (scenarios + Korean tax). | basic/deep |
-| `stock-analyzer.md` | Stock overview. Basic (price + 4 metrics) vs Deep (DCF + ratio calc + optional PDF). | basic/deep |
+| `stock-analyzer.md` | Stock overview. Basic (price + 4 metrics) vs Deep (DCF + ratios). | basic/deep |
 
-**3 Python scripts** (`skills/financial-analyst/scripts/`), stdin/stdout only:
+**4 Python scripts** (`skills/financial-analyst/scripts/`), stdin/stdout only:
 
 | Script | Used When |
 |--------|-----------|
 | `market_data_fetcher.py` | **All market data fetching** via yfinance. Caching + no rate limits. |
 | `dcf_valuation.py` | Deep stock analysis. DCF enterprise valuation + WACC + 2-way sensitivity (5×5 table). |
 | `ratio_calculator.py` | Deep stock analysis. 20 financial ratios + benchmark-based interpretation. |
+
+**1 standalone script** (`skills/pdf-report/scripts/`):
+
+| Script | Used When |
+|--------|-----------|
+| `html_to_pdf.py` | Converting HTML reports to PDF (WeasyPrint). Called by `@finance-advisor` directly. |
 
 **Deleted** (no longer exist): `portfolio-analyzer.md`, `rebalancing-engine.md`, `portfolio_metrics.py`, `rebalancing_calculator.py`.
 
@@ -33,6 +39,7 @@ This repo is the **source** for agents/skills. `install.sh` copies them to the u
 - **Raw data fetcher**: `market-researcher` does not analyze. It returns trimmed API responses. The caller (`finance-advisor` or `stock-analyzer`) decides what to do with the data.
 - **No script for simple math**: Allocation %, HHI, rebalancing trade amounts — agents calculate directly. Scripts are only for complex multi-step calculations (DCF 5-year projection, 20-ratio analysis).
 - **Economic context OFF by default**: `finance-advisor` skips `@market-researcher` for news sentiment unless Deep mode specifically benefits from it (e.g. DCF WACC adjustment, rebalancing in volatile markets).
+- **PDF generation**: Only `@finance-advisor` handles PDF creation. Subagents return text only. `html_to_pdf.py` in `skills/pdf-report/` converts HTML+CSS to PDF via WeasyPrint. No fixed JSON schema — agents compose free-form HTML inline.
 
 ## Orchestrator Pattern
 
@@ -42,9 +49,9 @@ This repo is the **source** for agents/skills. `install.sh` copies them to the u
 ```yaml
 permission:
   read: allow      # Routing decisions
-  edit: deny       # Implementation → @fixer
-  bash: deny       # Commands → @fixer
-  write: deny      # File creation → @fixer
+  edit: deny       # File modifications via tools
+  bash: allow      # PDF generation via html_to_pdf.py
+  write: deny      # File creation via tools
   glob: allow      # File discovery
   grep: allow      # Pattern search
   task: allow      # Subagent delegation (no MCP — data via @market-researcher)
@@ -56,8 +63,7 @@ permission:
 | Simple price query | `@market-researcher` | Fast data fetch |
 | Portfolio analysis | `@portfolio-manager` | Complex calculation |
 | Stock deep dive | `@stock-analyzer` | DCF + ratios |
-| File edits | `@fixer` | Implementation |
-| Code/scripts | `@fixer` | Implementation |
+| PDF report | `@finance-advisor` (direct) | HTML composition + `html_to_pdf.py` |
 
 ## Data Fetching & Caching
 

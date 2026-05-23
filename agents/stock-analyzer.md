@@ -167,21 +167,6 @@ Legacy single-scenario format (without `scenarios` key) is still fully supported
    - [2-3 sentence investment thesis]
 ```
 
-## PDF Generation
-
-**Only in Deep mode, user explicitly requests it.**
-
-Prerequisites: pandoc, xelatex, Noto Serif CJK KR font
-
-```bash
-TMPDIR=$(mktemp -d) && MARKDOWN="$TMPDIR/report.md"
-# write markdown content
-pandoc "$MARKDOWN" -o "$PWD/[ticker]_analysis.pdf" --pdf-engine=xelatex \
-  -V mainfont="Noto Serif CJK KR" -V geometry="margin=2cm"
-rm -rf "$TMPDIR"
-echo "PDF generated successfully"
-```
-
 ## Constraints
 
 - Basic mode: 3-4 bullet points, < 15 seconds
