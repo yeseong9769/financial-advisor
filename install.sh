@@ -51,17 +51,55 @@ choose_target() {
 
 install_to() {
   local target="$1"
+  local manifest_dir="$target/.financial-advisor"
+  local manifest="$manifest_dir/manifest"
   echo "  Target: $target"
+
+  # Cleanup previous installation from manifest
+  if [ -f "$manifest" ]; then
+    echo "  Cleaning up previous installation..."
+    while IFS= read -r installed_file; do
+      rm -f "$installed_file"
+    done < "$manifest"
+  fi
 
   mkdir -p "$target/agents"
   mkdir -p "$target/skills/financial-analyst/scripts"
   mkdir -p "$target/skills/pdf-report/scripts"
+  mkdir -p "$manifest_dir"
 
-  cp "$REPO_DIR/agents/"*.md "$target/agents/"
-  cp "$REPO_DIR/skills/financial-analyst/SKILL.md" "$target/skills/financial-analyst/"
-  cp "$REPO_DIR/skills/financial-analyst/scripts/"*.py "$target/skills/financial-analyst/scripts/"
-  cp "$REPO_DIR/skills/pdf-report/SKILL.md" "$target/skills/pdf-report/"
-  cp "$REPO_DIR/skills/pdf-report/scripts/"*.py "$target/skills/pdf-report/scripts/"
+  : > "$manifest"
+
+  # Install agents
+  local src fname dest
+  for src in "$REPO_DIR/agents/"*.md; do
+    [ -f "$src" ] || continue
+    fname=$(basename "$src")
+    dest="$target/agents/$fname"
+    cp "$src" "$dest"
+    echo "$dest" >> "$manifest"
+  done
+
+  # Install skills (SKILL.md only)
+  for dest_dir in skills/financial-analyst skills/pdf-report; do
+    src="$REPO_DIR/$dest_dir/SKILL.md"
+    if [ -f "$src" ]; then
+      dest="$target/$dest_dir/SKILL.md"
+      cp "$src" "$dest"
+      echo "$dest" >> "$manifest"
+    fi
+  done
+
+  # Install scripts
+  for dest_dir in skills/financial-analyst/scripts skills/pdf-report/scripts; do
+    for src in "$REPO_DIR/$dest_dir/"*.py; do
+      [ -f "$src" ] || continue
+      fname=$(basename "$src")
+      dest="$target/$dest_dir/$fname"
+      cp "$src" "$dest"
+      echo "$dest" >> "$manifest"
+    done
+  done
 
   echo "  - agents ($(ls "$target/agents/"*.md 2>/dev/null | wc -l) files)"
   echo "  - skills/financial-analyst ($(ls "$target/skills/financial-analyst/scripts/"*.py 2>/dev/null | wc -l) scripts)"
