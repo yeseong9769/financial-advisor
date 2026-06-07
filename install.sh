@@ -7,7 +7,7 @@ show_help() {
   cat <<'EOF'
 Financial Advisor Installer
 
-Install financial-advisor agents and skills for OpenCode.
+Install financial-advisor agent and skills for OpenCode.
 
 Usage:
   bash install.sh -g              Global install (~/.config/opencode/)
@@ -122,14 +122,12 @@ verify_installation() {
   echo "Verifying installation at: $target"
   echo "======================================"
 
-  for agent in finance-advisor market-researcher stock-analyzer portfolio-manager; do
-    if [ -f "$target/agents/$agent.md" ]; then
-      echo "  ✅ agents/$agent.md"
-    else
-      echo "  ❌ agents/$agent.md — MISSING"
-      errors=$((errors + 1))
-    fi
-  done
+  if [ -f "$target/agents/finance-advisor.md" ]; then
+    echo "  ✅ agents/finance-advisor.md"
+  else
+    echo "  ❌ agents/finance-advisor.md — MISSING"
+    errors=$((errors + 1))
+  fi
 
   if [ -f "$target/skills/financial-analyst/SKILL.md" ]; then
     echo "  ✅ skills/financial-analyst/SKILL.md"

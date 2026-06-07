@@ -141,6 +141,7 @@ def _fetch_yahoo_finance(symbol: str, endpoint: str) -> Optional[Dict[str, Any]]
                 "symbol": "symbol", "name": "shortName", "sector": "sector",
                 "industry": "industry", "marketCap": "marketCap",
                 "enterpriseValue": "enterpriseValue",
+                "currentPrice": "currentPrice", "regularMarketPrice": "regularMarketPrice",
                 "trailingPE": "trailingPE", "forwardPE": "forwardPE",
                 "priceToBook": "priceToBook", "priceToSalesTrailing12Months": "priceToSalesTrailing12Months",
                 "enterpriseToEbitda": "enterpriseToEbitda", "enterpriseToRevenue": "enterpriseToRevenue",
@@ -171,7 +172,7 @@ def _fetch_yahoo_finance(symbol: str, endpoint: str) -> Optional[Dict[str, Any]]
                 result[our_key] = info.get(yf_key)
             return _clean(result)
 
-if endpoint in ("income", "balance", "cashflow"):
+        if endpoint in ("income", "balance", "cashflow"):
             stmt_map = {
                 "income": ticker.income_stmt,
                 "balance": ticker.balance_sheet,
@@ -225,7 +226,7 @@ if endpoint in ("income", "balance", "cashflow"):
 
             return result
 
-if endpoint == "news":
+        if endpoint == "news":
             news = ticker.news
             if not news:
                 return None

@@ -2,20 +2,17 @@
 
 ## Project Type
 
-OpenCode multi-agent system config. No build/test pipeline. Changes to `agents/*.md` and `scripts/*.py` take effect after `install.sh` copies them to the target OpenCode config directory.
+OpenCode single-agent system with skill-backed analysis. No build/test pipeline. Changes to `agents/*.md` and `scripts/*.py` take effect after `install.sh` copies them to the target OpenCode config directory.
 
 ## Architecture
 
 This repo is the **source** for agents/skills. `install.sh` copies them to the user's OpenCode config (`~/.config/opencode/` or `./.opencode/`).
 
-**4 agents** (defined in `agents/*.md` with YAML front matter):
+**1 agent** (defined in `agents/finance-advisor.md` with YAML front matter):
 
-| Agent | Role | Mode |
-|-------|------|------|
-| `finance-advisor.md` | Orchestrator. Routes queries to subagents. Simple quotes delegated to `@market-researcher`. | — |
-| `market-researcher.md` | **Raw data fetch only** via yfinance engine. Returns data with zero interpretation/summarization. | — |
-| `portfolio-manager.md` | Portfolio allocation, returns, concentration, rebalancing. Basic (summary) vs Deep (scenarios + Korean tax). | basic/deep |
-| `stock-analyzer.md` | Stock overview. Basic (price + 4 metrics) vs Deep (DCF + ratios). | basic/deep |
+| Agent | Role |
+|-------|------|
+| `finance-advisor.md` | Directly handles all investment queries. Uses `financial-analyst` skill for detailed analysis guides and Python scripts for complex calculations. |
 
 **4 Python scripts** (`skills/financial-analyst/scripts/`), stdin/stdout only:
 
@@ -29,41 +26,32 @@ This repo is the **source** for agents/skills. `install.sh` copies them to the u
 
 | Script | Used When |
 |--------|-----------|
-| `html_to_pdf.py` | Converting HTML reports to PDF (WeasyPrint). Called by `@finance-advisor` directly. |
+| `html_to_pdf.py` | Converting HTML reports to PDF (WeasyPrint). |
 
-**Deleted** (no longer exist): `portfolio-analyzer.md`, `rebalancing-engine.md`, `portfolio_metrics.py`, `rebalancing_calculator.py`.
+**Deleted** (no longer exist): `portfolio-analyzer.md`, `rebalancing-engine.md`, `portfolio_metrics.py`, `rebalancing_calculator.py`, `market-researcher.md`, `portfolio-manager.md`, `stock-analyzer.md`.
 
 ## Design Decisions
 
-- **Basic vs Deep split**: `/finance-advisor.md` triggers Deep mode on keywords like "자세히", "심층", "분석", "리밸런싱", "DCF", "PDF". Default is Basic (3-5 bullet points, fast).
-- **Raw data fetcher**: `market-researcher` does not analyze. It returns trimmed API responses. The caller (`finance-advisor` or `stock-analyzer`) decides what to do with the data.
-- **No script for simple math**: Allocation %, HHI, rebalancing trade amounts — agents calculate directly. Scripts are only for complex multi-step calculations (DCF 5-year projection, 20-ratio analysis).
-- **Economic context OFF by default**: `finance-advisor` skips `@market-researcher` for news sentiment unless Deep mode specifically benefits from it (e.g. DCF WACC adjustment, rebalancing in volatile markets).
-- **PDF generation**: Only `@finance-advisor` handles PDF creation. Subagents return text only. `html_to_pdf.py` in `skills/pdf-report/` converts HTML+CSS to PDF via WeasyPrint. No fixed JSON schema — agents compose free-form HTML inline.
+- **Basic vs Deep split**: `finance-advisor` triggers Deep mode on keywords like "자세히", "심층", "분석", "리밸런싱", "DCF", "PDF". Default is Basic (3-5 bullet points, fast).
+- **Raw data fetcher**: `market_data_fetcher.py` returns raw API responses. The LLM decides what to do with the data.
+- **No script for simple math**: Allocation %, HHI, rebalancing trade amounts — LLM calculates directly. Scripts are only for complex multi-step calculations (DCF 5-year projection, 20-ratio analysis).
+- **Economic context OFF by default**: `finance-advisor` skips news sentiment gathering unless Deep mode specifically benefits from it (e.g. DCF WACC adjustment, rebalancing in volatile markets).
+- **PDF generation**: `finance-advisor` handles PDF creation directly. `html_to_pdf.py` in `skills/pdf-report/` converts HTML+CSS to PDF via WeasyPrint. No fixed JSON schema — LLM composes free-form HTML inline.
 
-## Orchestrator Pattern
+## Agent Permissions
 
-`finance-advisor` follows the official OpenCode orchestrator pattern:
-
-**Permissions (enforced delegation):**
 ```yaml
 permission:
-  read: allow      # Routing decisions
+  read: allow      # File reading for analysis
   edit: deny       # File modifications via tools
-  bash: allow      # PDF generation via html_to_pdf.py
+  bash: allow      # Script execution (market data, DCF, PDF)
   write: deny      # File creation via tools
   glob: allow      # File discovery
   grep: allow      # Pattern search
-  task: allow      # Subagent delegation (no MCP — data via @market-researcher)
+  webfetch: allow  # Economic context when needed
+  websearch: allow # Market sentiment when needed
+  task: deny       # No subagent delegation
 ```
-
-**Delegation rules:**
-| Task | Handler | Reason |
-|------|---------|--------|
-| Simple price query | `@market-researcher` | Fast data fetch |
-| Portfolio analysis | `@portfolio-manager` | Complex calculation |
-| Stock deep dive | `@stock-analyzer` | DCF + ratios |
-| PDF report | `@finance-advisor` (direct) | HTML composition + `html_to_pdf.py` |
 
 ## Data Fetching & Caching
 
@@ -84,7 +72,7 @@ All market data goes through `market_data_fetcher.py`:
 
 ## Korean Tax Default
 
-`portfolio-manager` Deep mode applies Korean tax rules by default:
+Portfolio rebalancing Deep mode applies Korean tax rules by default:
 - Capital gains tax: 22% on annual gains exceeding KRW 2.5M basic deduction
 - Dividend withholding: 15.4%
 - ISA account tax-exempt benefits, loss offsetting

@@ -1,4 +1,4 @@
-# Financial Advisor — OpenCode Multi-Agent System
+# Financial Advisor — OpenCode Skill-Backed Agent
 
 AI-powered financial assistant for individual investors. Provides portfolio analysis, market data retrieval, and asset rebalancing recommendations.
 
@@ -36,20 +36,21 @@ Only available in the current project.
 opencode
 ```
 ```
-Analyze my portfolio
-Suggest asset rebalancing
-Show me AAPL current price
-@stock-analyzer Deep dive on TSLA
+@finance-advisor Analyze my portfolio
+@finance-advisor Suggest asset rebalancing
+@finance-advisor Show me AAPL current price
+@finance-advisor Deep dive on TSLA
 ```
 
 ## Features
 
-| Task | Agent | Mode |
-|------|-------|------|
-| Portfolio statistics / Rebalancing | `@portfolio-manager` | Basic / Deep |
-| Market data (raw) | `@market-researcher` | — |
-| Stock overview | `@stock-analyzer` | Basic |
-| Stock deep-dive / DCF / PDF | `@stock-analyzer` | Deep |
+| Task | Mode |
+|------|------|
+| Current price / quote | Basic |
+| Portfolio statistics | Basic |
+| Stock overview | Basic |
+| Full portfolio analysis / Rebalancing | Deep |
+| Stock deep-dive / DCF / PDF | Deep |
 
 ## Architecture
 
@@ -59,17 +60,19 @@ financial-advisor/
 ├── AGENTS.md               ← Development rules
 ├── opencode.json.example   ← Config template (MCP not required)
 ├── requirements.txt        ← Python dependencies (yfinance, openpyxl)
-├── agents/                 ← OpenCode agent definitions
-│   ├── finance-advisor.md  ← Primary orchestrator
-│   ├── market-researcher.md
-│   ├── portfolio-manager.md
-│   └── stock-analyzer.md
-└── skills/financial-analyst/
-    ├── SKILL.md
-    └── scripts/
-        ├── market_data_fetcher.py  ← Data engine (yfinance)
-        ├── dcf_valuation.py
-        └── ratio_calculator.py
+├── agents/                 ← OpenCode agent definition
+│   └── finance-advisor.md  ← Single agent
+└── skills/
+    ├── financial-analyst/
+    │   ├── SKILL.md        ← Analysis guides + tool definitions
+    │   └── scripts/
+    │       ├── market_data_fetcher.py  ← Data engine (yfinance)
+    │       ├── dcf_valuation.py
+    │       └── ratio_calculator.py
+    └── pdf-report/
+        ├── SKILL.md
+        └── scripts/
+            └── html_to_pdf.py
 ```
 
 ## License
